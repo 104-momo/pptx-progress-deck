@@ -1,0 +1,7 @@
+build/
+_build/
+web/
+__pycache__/
+*.pyc
+.DS_Store
+config.json

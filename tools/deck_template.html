@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>__LECTURE_TITLE_HTML__</title>
+<style>
+:root{
+  --ink:#1B2838; --ink2:#243447; --paper:#FAF7F2; --blue:#2C5F7C;
+  --body:#2C3E50; --orange:#E8825A; --gold:#D4A574; --line:#D5C8B5;
+  --card:#F7F3ED; --gray:#7F8C9B;
+  --ui-bg:#1B2838; --ui-bg2:#243447; --ui-fg:#F7F3ED;
+  --radius:6px;
+  --serif:Georgia,"Times New Roman","Songti SC","SimSun",serif;
+  --sans:Calibri,"PingFang SC","Microsoft YaHei","Hiragino Sans GB",sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  background:var(--ink); color:var(--ui-fg);
+  font-family:var(--sans); font-size:14px; line-height:1.5;
+  overflow:hidden; display:flex; flex-direction:column;
+  -webkit-font-smoothing:antialiased;
+}
+button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
+input,textarea,select{font:inherit;color:var(--body)}
+
+/* ---------- 顶栏 ---------- */
+#topbar{
+  flex:0 0 44px; display:flex; align-items:center; gap:10px;
+  padding:0 12px; background:var(--ui-bg); border-bottom:1px solid #0f1620;
+  position:relative; z-index:50; user-select:none;
+}
+.tb-title{font-weight:600;letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:34vw}
+.tb-sub{color:#8a99a8;font-size:12px;white-space:nowrap}
+.tb-sp{flex:1}
+.tb-btn{
+  padding:5px 11px;border-radius:5px;border:1px solid #35485c;background:var(--ui-bg2);
+  font-size:13px;white-space:nowrap;transition:.15s;
+}
+.tb-btn:hover{background:#2e4256;border-color:#4a6280}
+.tb-btn.hot{border-color:var(--orange);color:var(--orange)}
+.tb-btn.on{background:var(--blue);border-color:var(--blue);color:#fff}
+#clsBtn{
+  display:flex;align-items:center;gap:7px;font-weight:600;
+  padding:5px 12px;border-radius:5px;background:var(--ink2);border:1px solid #35485c;
+}
+#clsBtn .swatch{width:10px;height:10px;border-radius:50%;background:var(--orange)}
+#clsBtn:hover{border-color:var(--orange)}
+#pg{font-variant-numeric:tabular-nums;color:#8a99a8;font-size:13px;min-width:52px;text-align:right}
+#markBtn{background:var(--orange);border-color:var(--orange);color:#22160f;font-weight:700}
+#markBtn:hover{background:#f09363}
+
+/* ---------- 舞台 ---------- */
+#viewport{flex:1;position:relative;overflow:hidden;background:#10161d}
+#stage{
+  position:absolute;left:50%;top:50%;width:1280px;height:720px;
+  transform-origin:center center;
+}
+#deck{position:absolute;inset:0;display:flex;transition:transform .42s cubic-bezier(.22,.61,.36,1)}
+.slide{
+  position:relative;flex:0 0 1280px;width:1280px;height:720px;overflow:visible;
+  background:#fff;
+}
+.sh{position:absolute;overflow:visible}
+.tf{display:flex;flex-direction:column;height:100%;width:100%}
+.tf.mid{justify-content:center}.tf.bot{justify-content:flex-end}.tf.top{justify-content:flex-start}
+.p{white-space:pre-wrap;word-break:break-word}
+.p span{display:inline}
+img.shapeimg{width:100%;height:100%;object-fit:contain;display:block}
+table.dt{border-collapse:collapse;width:100%;table-layout:fixed}
+table.dt td{border:1px solid var(--line);padding:6px 8px;vertical-align:top}
+table.dt td .p{white-space:pre-wrap}
+
+/* ---------- 底栏 ---------- */
+#botbar{
+  flex:0 0 34px;display:flex;align-items:center;gap:8px;padding:0 12px;
+  background:var(--ui-bg);border-top:1px solid #0f1620;font-size:12px;color:#8a99a8;
+  position:relative;z-index:50;user-select:none;
+}
+#dots{display:flex;gap:4px;align-items:center;flex:1;flex-wrap:nowrap;overflow:hidden}
+#dots i{
+  width:7px;height:7px;border-radius:50%;background:#3a4c60;display:block;cursor:pointer;
+  transition:.15s;flex:0 0 auto;
+}
+#dots i.cur{background:var(--orange);transform:scale(1.35)}
+#dots i.bp{background:var(--gold)}
+#hint{white-space:nowrap;color:#63768a}
+kbd{
+  background:#2b3a4b;border:1px solid #3d5064;border-radius:3px;padding:0 4px;
+  font-family:var(--sans);font-size:11px;color:#a8b8c8;
+}
+body.hide-ui #topbar,body.hide-ui #botbar{display:none}
+
+/* ---------- 浮动层 ---------- */
+#toast{
+  position:fixed;left:50%;bottom:78px;transform:translateX(-50%) translateY(14px);
+  background:rgba(27,40,56,.96);border:1px solid var(--orange);color:#fff;
+  padding:9px 16px;border-radius:8px;font-size:14px;opacity:0;pointer-events:none;
+  transition:.25s;z-index:200;white-space:nowrap;box-shadow:0 8px 30px rgba(0,0,0,.4);
+}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+#resume{
+  position:fixed;left:16px;bottom:46px;z-index:150;display:none;align-items:center;gap:10px;
+  background:rgba(27,40,56,.96);border:1px solid var(--gold);padding:9px 12px;border-radius:8px;
+  box-shadow:0 8px 26px rgba(0,0,0,.45);transition:.3s;max-width:60vw;
+}
+#resume.mini{bottom:14px;left:14px;padding:5px 10px;font-size:12px;opacity:.82}
+#resume.mini .r-txt{display:none}
+#resume.mini:hover{opacity:1}
+#resume .r-main{font-size:13px;color:#fff}
+#resume .r-main b{color:var(--gold);font-variant-numeric:tabular-nums}
+#resume .r-go{
+  background:var(--gold);color:#3a2a17;font-weight:700;padding:4px 12px;border-radius:5px;
+  font-size:13px;white-space:nowrap;
+}
+#resume .r-x{color:#6e8093;padding:0 4px;font-size:15px}
+#resume .r-x:hover{color:#fff}
+#fab{
+  position:fixed;left:16px;bottom:46px;z-index:120;width:56px;height:56px;border-radius:50%;
+  background:var(--orange);color:#22160f;font-weight:800;font-size:12px;display:none;
+  flex-direction:column;align-items:center;justify-content:center;line-height:1.15;
+  box-shadow:0 6px 20px rgba(0,0,0,.45);border:2px solid rgba(255,255,255,.25);
+}
+#fab.show{display:flex}
+#fab small{font-size:10px;font-weight:600;opacity:.75}
+
+/* ---------- 遮罩层通用 ---------- */
+.overlay{
+  position:fixed;inset:0;z-index:300;background:rgba(10,15,21,.93);
+  display:none;flex-direction:column;align-items:center;justify-content:center;padding:24px;
+}
+.overlay.show{display:flex}
+.ov-title{font-size:18px;font-weight:600;margin-bottom:4px}
+.ov-desc{color:#8a99a8;font-size:13px;margin-bottom:20px}
+#clsGrid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;max-width:660px;width:100%}
+.clsCard{
+  background:var(--ink2);border:1px solid #35485c;border-radius:8px;padding:14px 10px;
+  text-align:center;transition:.15s;min-width:0;
+}
+.clsCard:hover{border-color:var(--orange);transform:translateY(-2px)}
+.clsCard.cur{border-color:var(--orange);background:#2e4256}
+.clsCard .cn{font-weight:600;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.clsCard .cp{color:var(--gold);font-size:12px;margin-top:4px;font-variant-numeric:tabular-nums;height:16px}
+.clsCard .cn[contenteditable="true"]{outline:1px dashed #6b8299;background:#203040}
+.clsCard{position:relative}
+.clsCard .cdel{
+  position:absolute;right:4px;top:3px;width:18px;height:18px;line-height:16px;border-radius:50%;
+  color:#5f7286;font-size:14px;display:none;
+}
+.clsCard:hover .cdel{display:block}
+.clsCard .cdel:hover{background:#5a3a2e;color:#ffb9a0}
+.clsCard.add{border-style:dashed;border-color:#3d5064;background:transparent}
+.clsCard.add:hover{border-color:var(--orange)}
+#lecSel{
+  background:var(--ui-bg2);color:var(--ui-fg);border:1px solid #35485c;border-radius:5px;
+  padding:5px 6px;font-size:12px;max-width:190px;
+}
+#lecSel:hover{border-color:#4a6280}
+.clsTip{color:#6e8093;font-size:12px;margin-top:18px}
+
+/* ---------- 总览 ---------- */
+#ovp{position:fixed;inset:0;z-index:280;background:rgba(10,15,21,.96);display:none;flex-direction:column}
+#ovp.show{display:flex}
+#ovp header{
+  flex:0 0 auto;padding:14px 20px;display:flex;align-items:center;gap:14px;
+  border-bottom:1px solid #243447;flex-wrap:wrap;
+}
+#ovp header h3{font-size:15px;font-weight:600}
+#ovp .chips{display:flex;gap:6px;flex-wrap:wrap;flex:1}
+#ovp .chip{
+  padding:3px 10px;border:1px solid #35485c;border-radius:20px;font-size:12px;color:#9fb0c1;
+}
+#ovp .chip.on{background:var(--blue);border-color:var(--blue);color:#fff}
+#ovGrid{
+  flex:1;overflow:auto;padding:18px 20px 40px;
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:16px;align-content:start;
+}
+.ovcell{cursor:pointer}
+.ovcell .thumb{
+  position:relative;width:230px;height:129px;overflow:hidden;border:2px solid #2b3a4b;
+  border-radius:5px;background:#fff;
+}
+.ovcell .thumb .sc{position:absolute;left:0;top:0;width:1280px;height:720px;transform-origin:top left;pointer-events:none}
+.ovcell .num{
+  position:absolute;left:0;top:0;background:rgba(27,40,56,.9);color:#fff;font-size:11px;
+  padding:1px 6px;border-bottom-right-radius:4px;z-index:2;font-variant-numeric:tabular-nums;
+}
+.ovcell.done .thumb .sc{opacity:.42}
+.ovcell.bp .thumb{border-color:var(--orange)}
+.ovcell.bp .flag{
+  position:absolute;right:0;bottom:0;background:var(--orange);color:#22160f;font-size:11px;
+  font-weight:700;padding:2px 7px;border-top-left-radius:4px;z-index:2;
+}
+.ovcell:hover .thumb{border-color:var(--gold)}
+#ovGrid .lgd{margin-top:6px;font-size:11px;color:#7b8b9b;text-align:center}
+
+/* ---------- 备注抽屉 ---------- */
+#note{
+  position:fixed;right:0;top:0;bottom:0;width:340px;z-index:260;background:var(--paper);
+  color:var(--body);box-shadow:-10px 0 34px rgba(0,0,0,.4);transform:translateX(100%);
+  transition:transform .25s;display:flex;flex-direction:column;
+}
+#note.show{transform:translateX(0)}
+#note .nh{padding:14px 16px 10px;border-bottom:1px solid var(--line)}
+#note .nh h4{font-size:14px;color:var(--ink)}
+#note .nh .sub{font-size:12px;color:var(--gray);margin-top:2px}
+#note .nb{flex:1;overflow:auto;padding:12px 16px}
+#note .nf{padding:10px 16px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:8px}
+.nitem{background:#fff;border:1px solid var(--line);border-left:3px solid var(--blue);border-radius:5px;padding:8px 10px;margin-bottom:8px}
+.nitem.cls{border-left-color:var(--orange)}
+.nitem .meta{font-size:11px;color:var(--gray);display:flex;justify-content:space-between;margin-bottom:4px}
+.nitem .body{font-size:13px;white-space:pre-wrap;word-break:break-word}
+.nitem .del{color:#b0603f;font-size:11px}
+.nitem .del:hover{text-decoration:underline}
+.newrow{display:flex;gap:6px;margin-bottom:10px}
+.newrow button{flex:1;padding:5px;border:1px solid var(--line);border-radius:5px;background:#fff;font-size:12px}
+.newrow button.on{background:var(--blue);color:#fff;border-color:var(--blue)}
+#note textarea{
+  width:100%;height:88px;border:1px solid var(--line);border-radius:5px;padding:8px;resize:vertical;
+  font-size:13px;background:#fff;
+}
+#note .nf .row2{display:flex;gap:8px}
+#note .nf .row2 button{flex:1;padding:7px;border-radius:5px;background:var(--blue);color:#fff;font-size:13px}
+#note .nf .row2 button.ghost{background:#fff;color:var(--body);border:1px solid var(--line)}
+.empty{color:var(--gray);font-size:12px;text-align:center;padding:20px 0}
+
+@media (max-width:720px){
+  .tb-title{max-width:40vw}#hint{display:none}#note{width:100vw}
+  #clsGrid{grid-template-columns:repeat(2,1fr)}
+}
+@media print{
+  #topbar,#botbar,#fab,#resume,#toast,#note,#ovp{display:none!important}
+  #viewport{overflow:visible}
+}
+</style>
+</head>
+<body>
+
+<!-- ======== 顶栏 ======== -->
+<div id="topbar">
+  <span class="tb-title">__LECTURE_TITLE__</span>
+  <span class="tb-sub">__LECTURE_ID_HTML__</span>
+  <select id="lecSel" title="切换到其它讲次"></select>
+  <span class="tb-sp"></span>
+  <button class="tb-btn" id="clsBtn"><span class="swatch"></span><span id="clsName">选择班级</span></button>
+  <button class="tb-btn" id="ovBtn">总览 <kbd>Esc</kbd></button>
+  <button class="tb-btn" id="noteBtn">备注 <kbd>N</kbd></button>
+  <button class="tb-btn" id="impBtn" title="导入进度备份">导入</button>
+  <button class="tb-btn" id="dataBtn">备份</button>
+  <span id="pg">1 / __TOTAL__</span>
+  <button class="tb-btn" id="hideBtn" title="隐藏界面 (H)">⤢</button>
+</div>
+
+<!-- ======== 舞台 ======== -->
+<div id="viewport">
+  <div id="stage"><div id="deck">
+__SLIDES__
+  </div></div>
+</div>
+
+<!-- ======== 底栏 ======== -->
+<div id="botbar">
+  <span id="dots"></span>
+  <span id="hint">
+    <kbd>←</kbd><kbd>→</kbd> 翻页 · <kbd>S</kbd> 标记讲到这儿 · <kbd>Shift+S</kbd> 本页讲完 · <kbd>N</kbd> 备注 · <kbd>Esc</kbd> 总览 · <kbd>H</kbd> 沉浸
+  </span>
+</div>
+
+<!-- ======== 浮动 ======== -->
+<div id="toast"></div>
+<div id="fab"><span id="fabCls">班级</span><small id="fabPg"></small></div>
+<div id="resume">
+  <span class="r-main">上次讲到 <b id="rFrom">—</b>，下次继续 <b id="rTo">—</b></span>
+  <button class="r-go" id="rGo">继续 ▶</button>
+  <button class="r-x" id="rX">×</button>
+</div>
+
+<!-- ======== 选班 ======== -->
+<div class="overlay" id="clsOverlay">
+  <div class="ov-title">现在是哪个班？</div>
+  <div class="ov-desc">选好后会自动记住，随时可在左上角切换</div>
+  <div id="clsGrid"></div>
+  <div class="clsTip">双击班级名可以改成真实班名（如「导演2601」）</div>
+</div>
+
+<!-- ======== 总览 ======== -->
+<div id="ovp">
+  <header>
+    <h3>讲到了哪儿</h3>
+    <span class="chips" id="ovChips"></span>
+    <span class="tb-sub">灰色 = 已讲 · 橙框 = 断点</span>
+    <button class="tb-btn" id="ovClose">关闭 ✕</button>
+  </header>
+  <div id="ovGrid"></div>
+</div>
+
+<!-- ======== 备注 ======== -->
+<div id="note">
+  <div class="nh">
+    <h4 id="noteTitle">备注</h4>
+    <div class="sub" id="noteSub"></div>
+  </div>
+  <div class="nb" id="noteList"></div>
+  <div class="nf">
+    <div class="newrow">
+      <button id="scopeAll" class="on">全课程备注</button>
+      <button id="scopeCls">仅本班</button>
+    </div>
+    <textarea id="noteInput" placeholder="写点什么：临时想法、补充案例、下节课要补的内容…"></textarea>
+    <div class="row2">
+      <button id="noteSave">保存备注</button>
+      <button class="ghost" id="noteClose">关闭</button>
+    </div>
+  </div>
+</div>
+
+<input type="file" id="fileIn" accept="application/json,.json" style="display:none">
+
+<script>
+/* ================= 常量（由 convert.py 注入） ================= */
+var LID    = __LECTURE_ID__;
+var TITLE  = __LECTURE_TITLE__;
+var COURSE = __COURSE__;
+var CID    = __COURSE_ID__;      /* 课程标识：同一门课各讲进度互通，不同课程互不干扰 */
+var TOTAL  = __TOTAL__;
+var KEY    = "deck-progress-v1:" + CID;
+/* 班级由外部配置注入（数量、名称均可自定义），页面里也能随时增删改 */
+var DEFAULT_CLASSES = __CLASSES__;
+/* 同一门课的其它讲次，用于顶栏下拉跳转：[{id,name,file,title}] */
+var LECTURES = __LECTURES__;
+var CLR = ["#E8825A","#2C5F7C","#D4A574","#7F8C9B","#9C6B4E","#4E7C8C","#A98C5F","#6B8E7A"];
+
+/* ================= 数据层 ================= */
+var S = null;
+function defaults(){
+  var cs=[], seen={};
+  (DEFAULT_CLASSES||[]).forEach(function(c,i){
+    var id = c.id || ("c"+(i+1));
+    if(seen[id]) id = id+"_"+(i+1);
+    seen[id]=1;
+    cs.push({id:id, name:c.name||("班级"+(i+1))});
+  });
+  return {v:1, course:COURSE, classes:cs, current:null, progress:{}, notes:{}};
+}
+function nextClsId(){
+  var m=0;
+  S.classes.forEach(function(c){ var v=parseInt(String(c.id||"").replace(/\D/g,""),10)||0; if(v>m) m=v; });
+  return "c"+(m+1);
+}
+function addCls(name){
+  var c={id:nextClsId(), name:name||("班级"+(S.classes.length+1))};
+  S.classes.push(c); save(); renderCls(); return c;
+}
+function delCls(cid){
+  var i=-1; S.classes.forEach(function(c,k){ if(c.id===cid) i=k; });
+  if(i<0) return;
+  var nm=S.classes[i].name;
+  if(!confirm("删除「"+nm+"」？该班的所有进度记录和「仅本班」备注也会一起删掉。")) return;
+  S.classes.splice(i,1);
+  delete S.progress[cid];
+  /* 清掉该班的班级级备注 */
+  for(var L in S.notes){ for(var pg in S.notes[L]){
+    S.notes[L][pg]=(S.notes[L][pg]||[]).filter(function(n){ return !(n.scope==="class"&&n.owner===cid); });
+  }}
+  if(cur()===cid) S.current=S.classes.length?S.classes[0].id:null;
+  save(); renderCls(); renderTopbar(); writeHash();
+  toast("已删除 "+nm);
+}
+function load(){
+  try{ var raw = localStorage.getItem(KEY); if(raw){ var o=JSON.parse(raw); if(o&&o.classes) return o; } }catch(e){}
+  return defaults();
+}
+function save(){ try{ localStorage.setItem(KEY, JSON.stringify(S)); }catch(e){ toast("浏览器不允许保存数据，请用「数据→导出」备份"); } }
+function esc(s){
+  return String(s==null?"":s).replace(/[&<>"']/g,function(c){
+    return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];
+  });
+}
+function cls(id){ for(var i=0;i<S.classes.length;i++) if(S.classes[i].id===id) return S.classes[i]; return null; }
+function cur(){ return S.current; }
+function bp(cid){ var p=S.progress[cid]; return (p&&p[LID]&&p[LID].p)||0; }
+function setBp(cid,p){
+  if(!S.progress[cid]) S.progress[cid]={};
+  if(p<=0 || p>TOTAL){ delete S.progress[cid][LID]; return; }
+  S.progress[cid][LID]={p:p,t:new Date().toISOString()};
+}
+
+/* hash：#c3-L01:13-L02:1 ，跨设备同步用 */
+function readHash(){
+  var h=(location.hash||"").replace(/^#/,""); if(!h) return null;
+  var parts=h.split("-"), cid=parts[0], map={};
+  for(var i=1;i<parts.length;i++){
+    var kv=parts[i].split(":"); if(kv.length===2 && /^[A-Za-z0-9]+$/.test(kv[0]) && /^\d+$/.test(kv[1]))
+      map[kv[0]]=parseInt(kv[1],10);
+  }
+  if(!cid || !/^c\d+$/.test(cid)) return null;
+  return {cid:cid,map:map};
+}
+function hashStr(){
+  var out=[cur()||"c1"], any=false, mv=S.progress[cur()]||{};
+  for(var k in mv){ if(mv[k] && mv[k].p){ out.push(k+":"+mv[k].p); any=true; } }
+  return any?out.join("-"):(cur()||"c1");
+}
+function writeHash(){
+  try{ history.replaceState(null,"","#"+hashStr()); }catch(e){}
+}
+function applyHash(){
+  var h=readHash(); if(!h) return false;
+  // 保证班级存在
+  if(!cls(h.cid)) return false;
+  S.current=h.cid;
+  if(!S.progress[h.cid]) S.progress[h.cid]={};
+  for(var k in h.map) S.progress[h.cid][k]={p:h.map[k],t:new Date().toISOString()};
+  return h.map[LID]?h.map[LID]:0;
+}
+
+/* ================= 视图控制 ================= */
+var idx=0;
+var $=function(s){return document.querySelector(s)};
+var $$=function(s){return [].slice.call(document.querySelectorAll(s))};
+var deck=$("#deck"), stage=$("#stage");
+
+function fit(){
+  var vp=$("#viewport"), w=vp.clientWidth-32, h=vp.clientHeight-32;
+  var s=Math.min(w/1280,h/720);
+  stage.style.transform="translate(-50%,-50%) scale("+s+")";
+}
+function go(n,silent){
+  n=Math.max(0,Math.min(TOTAL-1,n)); idx=n;
+  deck.style.transform="translateX("+(-idx*1280)+"px)";
+  $("#pg").textContent=(idx+1)+" / "+TOTAL;
+  $$("#dots i").forEach(function(d,i){ d.classList.toggle("cur",i===idx); });
+  var p=bp(cur());
+  $$("#dots i").forEach(function(d,i){ d.classList.toggle("bp",p>0&&i===p-1); });
+  $("#fabPg").textContent="P"+(idx+1);
+  if(!silent) writeHash();
+}
+function toast(msg){
+  var t=$("#toast"); t.textContent=msg; t.classList.add("show");
+  clearTimeout(window._tt); window._tt=setTimeout(function(){t.classList.remove("show")},2200);
+}
+
+/* ================= 断点 ================= */
+function markHere(finished){
+  if(!cur()){ openCls(); return; }
+  var p = finished ? idx+2 : idx+1;         // finished=本页已讲完 → 下次从下页开始
+  if(p>TOTAL) p=TOTAL;
+  setBp(cur(),p);
+  save(); writeHash();
+  toast(cls(cur()).name+"：下次从 P"+p+" 开始"+(finished?"（本页已讲完）":"（本页需重讲）"));
+  renderCls(); go(idx,true);
+}
+function renderTopbar(){
+  var c=cls(cur());
+  $("#clsName").textContent = c?c.name:"选择班级";
+  $("#fabCls").textContent  = c?c.name:"?";
+  $("#fab").classList.toggle("show", !!c);
+  $("#resume").style.display = "none";
+  if(c){
+    var p=bp(c.id);
+    if(p>1 && p<=TOTAL){            // p=1 = 还没开课，不显示定位条
+      $("#rFrom").textContent="P"+(p-1);
+      $("#rTo").textContent="P"+p;
+      var r=$("#resume"); r.style.display="flex"; r.classList.remove("mini");
+      clearTimeout(window._rt);
+      window._rt=setTimeout(function(){ r.classList.add("mini"); },8000);
+    }
+    else if(p===1 && TOTAL>0){
+      // 从头开始的情况：只在悬浮钮上体现
+      $("#fabPg").textContent="从头";
+    }
+  }
+  $$("#dots i").forEach(function(d,i){ d.classList.toggle("bp",!!c&&bp(c.id)>0&&i===bp(c.id)-1); });
+}
+function renderLectures(){
+  var sel=$("#lecSel");
+  if(!LECTURES || LECTURES.length<2){ sel.style.display="none"; return; }
+  sel.innerHTML="";
+  LECTURES.forEach(function(l){
+    var o=document.createElement("option");
+    o.value=l.file; o.textContent=l.title||l.id;
+    if(l.id===LID) o.selected=true;
+    sel.appendChild(o);
+  });
+  sel.onchange=function(){
+    if(!sel.value) return;
+    location.href=sel.value+"#"+hashStr();
+  };
+}
+function renderCls(){
+  renderLectures();
+  var g=$("#clsGrid"); g.innerHTML="";
+  S.classes.forEach(function(c,i){
+    var p=bp(c.id);
+    var d=document.createElement("div");
+    d.className="clsCard"+(c.id===cur()?" cur":"");
+    d.innerHTML='<button class="cdel" title="删除这个班">×</button>'+
+                '<div class="cn" data-id="'+c.id+'">'+esc(c.name)+'</div>'+
+                '<div class="cp">'+(p>1?("讲到 P"+(p-1)+" · 下次 P"+p):(p===1?"未开课 · 从头开始":"未开始"))+'</div>';
+    d.querySelector(".cdel").onclick=function(e){ e.stopPropagation(); delCls(c.id); };
+    d.querySelector(".cn").style.color=CLR[i%CLR.length];
+    d.onclick=function(e){
+      if(e.target.classList.contains("cn")&&e.target.isContentEditable) return;
+      S.current=c.id; save(); writeHash(); closeCls(); renderTopbar(); autoJump(true);
+    };
+    var cn=d.querySelector(".cn");
+    cn.ondblclick=function(e){
+      e.stopPropagation(); cn.contentEditable="true"; cn.style.outline="1px dashed #6b8299"; cn.focus();
+      document.getSelection().selectAllChildren(cn);
+    };
+    cn.onblur=function(){
+      cn.contentEditable="false"; cn.style.outline="none";
+      var v=(cn.textContent||"").trim(); if(v&&v!==c.name){ c.name=v.slice(0,20); }
+      cn.textContent=c.name; save(); renderCls(); renderTopbar();
+    };
+    cn.onkeydown=function(e){ if(e.key==="Enter"){ e.preventDefault(); cn.blur(); } e.stopPropagation(); };
+    g.appendChild(d);
+  });
+  /* 添加班级 */
+  var add=document.createElement("div");
+  add.className="clsCard add";
+  add.innerHTML='<div class="cn" style="color:#7f95a9">＋ 添加班级</div><div class="cp">&nbsp;</div>';
+  add.onclick=function(){
+    var n=prompt("新班级的名字（如「导演2601」）：","班级"+(S.classes.length+1));
+    if(n===null) return;
+    var c=addCls(n.trim()||("班级"+(S.classes.length+1)));
+    if(!cur()) S.current=c.id;
+    save(); writeHash(); renderTopbar(); toast("已添加 "+c.name);
+  };
+  g.appendChild(add);
+  // 总览里的班级 chips
+  var ch=$("#ovChips"); ch.innerHTML="";
+  S.classes.forEach(function(c){
+    var b=document.createElement("span");
+    b.className="chip"+(c.id===cur()?" on":"");
+    b.textContent=c.name+(bp(c.id)>0?(" · P"+bp(c.id)):"");
+    b.onclick=function(){ S.current=c.id; save(); writeHash(); renderTopbar(); renderOverview(); };
+    ch.appendChild(b);
+  });
+}
+function openCls(){ renderCls(); $("#clsOverlay").classList.add("show"); }
+function closeCls(){ $("#clsOverlay").classList.remove("show"); }
+function autoJump(explicit){
+  var p=bp(cur()); if(!p||p<1) return;
+  var target=p-1; if(target<0) target=0; if(target>TOTAL-1) target=TOTAL-1;
+  if(target!==0 || explicit) go(target);
+}
+
+/* ================= 总览 ================= */
+function renderOverview(){
+  var g=$("#ovGrid"); g.innerHTML="";
+  var p=bp(cur());
+  var slides=$$("#deck .slide");
+  slides.forEach(function(sl,i){
+    var cell=document.createElement("div");
+    cell.className="ovcell"+(p>0&&i<p-1?" done":"")+(p>0&&i===p-1?" bp":"");
+    var th=document.createElement("div"); th.className="thumb";
+    var sc=document.createElement("div"); sc.className="sc";
+    sc.appendChild(sl.cloneNode(true));
+    sc.style.transform="scale(0.1797)";
+    th.innerHTML='<span class="num">'+(i+1)+'</span>';
+    th.appendChild(sc);
+    if(i===p-1){ var f=document.createElement("span"); f.className="flag"; f.textContent="▶ 继续"; th.appendChild(f); }
+    th.onclick=function(){ closeOv(); go(i); };
+    cell.appendChild(th);
+    g.appendChild(cell);
+  });
+}
+function openOv(){ renderOverview(); $("#ovp").classList.add("show"); }
+function closeOv(){ $("#ovp").classList.remove("show"); }
+
+/* ================= 备注 ================= */
+var noteScope="all";
+function renderNotes(){
+  $("#noteTitle").textContent="第 "+(idx+1)+" 页备注";
+  $("#noteSub").textContent=TITLE+" · "+(noteScope==="all"?"全课程可见":"仅 "+cls(cur()).name+" 可见");
+  var list=(S.notes[LID]||{})[String(idx+1)]||[];
+  var box=$("#noteList"); box.innerHTML="";
+  var shown=list.filter(function(n){ return noteScope==="all" ? n.scope==="all" : (n.scope==="class"&&n.owner===cur()); });
+  if(!shown.length){ box.innerHTML='<div class="empty">还没有备注。写在下面保存即可。</div>'; return; }
+  shown.forEach(function(n){
+    var d=document.createElement("div");
+    d.className="nitem"+(n.scope==="class"?" cls":"");
+    var who = n.scope==="all" ? "全课程" : (cls(n.owner)?cls(n.owner).name:"某班");
+    d.innerHTML='<div class="meta"><span>'+who+' · '+esc(n.t.slice(0,16).replace("T"," "))+'</span>'+
+                '<span class="del">删除</span></div><div class="body">'+esc(n.text)+'</div>';
+    d.querySelector(".del").onclick=function(){
+      var arr=(S.notes[LID]||{})[String(idx+1)]||[];
+      var k=arr.indexOf(n); if(k>=0) arr.splice(k,1);
+      save(); renderNotes(); toast("已删除");
+    };
+    box.appendChild(d);
+  });
+}
+function saveNote(){
+  var t=$("#noteInput").value.trim(); if(!t){ toast("内容是空的"); return; }
+  if(!S.notes[LID]) S.notes[LID]={};
+  var key=String(idx+1);
+  if(!S.notes[LID][key]) S.notes[LID][key]=[];
+  S.notes[LID][key].push({
+    scope: noteScope==="all"?"all":"class",
+    owner: noteScope==="all"?null:cur(),
+    text:t, t:new Date().toISOString()
+  });
+  save(); $("#noteInput").value=""; renderNotes(); toast("备注已保存");
+}
+function openNote(){ if(!cur()){ openCls(); return; } renderNotes(); $("#note").classList.add("show"); }
+function closeNote(){ $("#note").classList.remove("show"); }
+
+/* ================= 数据导入导出 ================= */
+function exportJSON(){
+  var blob=new Blob([JSON.stringify(S,null,2)],{type:"application/json"});
+  var a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  a.download="叙事理论-进度备份-"+new Date().toISOString().slice(0,10)+".json";
+  a.click(); setTimeout(function(){URL.revokeObjectURL(a.href)},3000);
+  toast("已导出备份文件");
+}
+$("#fileIn").onchange=function(e){
+  var f=e.target.files[0]; if(!f) return;
+  var r=new FileReader();
+  r.onload=function(){
+    try{
+      var o=JSON.parse(r.result);
+      if(!o.classes) throw 0;
+      S=o; if(!cur()) S.current=S.classes[0].id;
+      save(); renderCls(); renderTopbar(); autoJump(true); writeHash();
+      toast("已导入进度");
+    }catch(err){ toast("文件格式不对，导入失败"); }
+  };
+  r.readAsText(f); e.target.value="";
+};
+function copyLink(){
+  writeHash(); var url=location.href;
+  var ok=false;
+  try{
+    var ta=document.createElement("textarea"); ta.value=url; document.body.appendChild(ta);
+    ta.select(); ok=document.execCommand("copy"); document.body.removeChild(ta);
+  }catch(e){}
+  toast(ok?("已复制带进度的网址，存成书签就能跨设备打开"):("请手动复制地址栏网址："+url));
+}
+
+/* ================= 事件绑定 ================= */
+function buildDots(){
+  var d=$("#dots"); d.innerHTML="";
+  for(var i=0;i<TOTAL;i++){ var el=document.createElement("i"); el.idx=i; el.onclick=function(){go(this.idx)}; d.appendChild(el); }
+}
+$("#clsBtn").onclick=openCls;
+$("#ovBtn").onclick=openOv;
+$("#ovClose").onclick=closeOv;
+$("#noteBtn").onclick=openNote;
+$("#noteClose").onclick=closeNote;
+$("#noteSave").onclick=saveNote;
+$("#scopeAll").onclick=function(){ noteScope="all"; $("#scopeAll").classList.add("on"); $("#scopeCls").classList.remove("on"); renderNotes(); };
+$("#scopeCls").onclick=function(){ noteScope="cls"; $("#scopeAll").classList.remove("on"); $("#scopeCls").classList.add("on"); renderNotes(); };
+$("#fab").onclick=function(){ cur()?openCls():openCls(); };
+$("#rGo").onclick=function(){ var p=bp(cur()); if(p) go(Math.max(0,p-1)); };
+$("#rX").onclick=function(){ $("#resume").style.display="none"; };
+$("#hideBtn").onclick=function(){ document.body.classList.toggle("hide-ui"); setTimeout(fit,60); };
+$("#dataBtn").onclick=function(){
+  var m="① 导出备份：把当前所有班进度 + 备注存成 json 文件\n② 导入：换电脑时恢复\n③ 复制进度网址：网址里带进度，存书签即可跨设备\n\n选「确定」导出，「取消」进入下一项";
+  if(confirm(m)) exportJSON();
+  else copyLink();
+};
+$("#impBtn").onclick=function(){ $("#fileIn").click(); };
+$("#dataBtn").onclick=function(){
+  if(confirm("确定：导出备份文件（含所有班进度 + 备注）\n取消：复制带进度的网址，存成书签即可在别的电脑上打开")) exportJSON();
+  else copyLink();
+};
+
+document.addEventListener("keydown",function(e){
+  if(document.activeElement && (document.activeElement.isContentEditable ||
+     /INPUT|TEXTAREA/.test(document.activeElement.tagName))) return;
+  var k=e.key;
+  if($("#ovp").classList.contains("show")){ if(k==="Escape"){ e.preventDefault(); closeOv(); } return; }
+  if($("#note").classList.contains("show")){ if(k==="Escape"||k==="n"||k==="N"){ e.preventDefault(); closeNote(); } return; }
+  if($("#clsOverlay").classList.contains("show")){ if(k==="Escape"){ e.preventDefault(); if(cur()) closeCls(); } return; }
+
+  if(k==="ArrowRight"||k==="PageDown"||k===" "||k==="ArrowDown"){ e.preventDefault(); go(idx+1); }
+  else if(k==="ArrowLeft"||k==="PageUp"||k==="ArrowUp"){ e.preventDefault(); go(idx-1); }
+  else if(k==="Home"){ go(0); }
+  else if(k==="End"){ go(TOTAL-1); }
+  else if(k==="Escape"){ openOv(); }
+  else if(k==="s"||k==="S"){ markHere(e.shiftKey); }
+  else if(k==="n"||k==="N"){ openNote(); }
+  else if(k==="h"||k==="H"){ document.body.classList.toggle("hide-ui"); setTimeout(fit,60); }
+  else if(k==="c"||k==="C"){ openCls(); }
+});
+
+/* 滚轮 / 触摸 */
+var acc=0,wt=null;
+$("#viewport").addEventListener("wheel",function(e){
+  if($("#ovp").classList.contains("show")) return;
+  e.preventDefault(); acc+=e.deltaY;
+  clearTimeout(wt);
+  wt=setTimeout(function(){acc=0},180);
+  if(acc>60){ go(idx+1); acc=0; } else if(acc<-60){ go(idx-1); acc=0; }
+},{passive:false});
+var tx0=null,ty0=null;
+function tst(e){ tx0=e.touches[0].clientX; ty0=e.touches[0].clientY; }
+function tmv(e){
+  if(tx0===null) return;
+  var dx=e.touches[0].clientX-tx0, dy=e.touches[0].clientY-ty0;
+  if(Math.abs(dx)>50&&Math.abs(dx)>Math.abs(dy)){ go(idx+(dx<0?1:-1)); tx0=null; }
+}
+function ten(){ tx0=null; }
+$("#viewport").addEventListener("touchstart",tst,{passive:true});
+$("#viewport").addEventListener("touchmove",tmv,{passive:true});
+$("#viewport").addEventListener("touchend",ten);
+
+window.addEventListener("resize",function(){ fit(); });
+window.addEventListener("hashchange",function(){ var p=applyHash(); if(p){ save(); renderTopbar(); go(Math.max(0,p-1)); } });
+
+/* ================= 启动 ================= */
+S=load();
+buildDots();
+/* 配置里新增了班级时，合并进来（已存在的按 id 保留） */
+if(DEFAULT_CLASSES && DEFAULT_CLASSES.length){
+  var have={}; S.classes.forEach(function(c){ have[c.id]=1; });
+  var added=false;
+  DEFAULT_CLASSES.forEach(function(c,i){
+    if(!c.id || have[c.id]) return;
+    S.classes.push({id:c.id,name:c.name||("班级"+(i+1))}); added=true;
+  });
+  if(added) save();
+}
+var jumped=applyHash();
+if(!cur()){
+  if(S.classes.length){ S.current=S.classes[0].id; }
+  openCls();                      /* 没选过班 / 一个班都没有 → 弹面板 */
+}
+save(); renderCls(); renderTopbar();
+fit(); go(jumped?Math.max(0,jumped-1):0,true);
+if(!jumped) autoJump(false);
+</script>
+</body>
+</html>

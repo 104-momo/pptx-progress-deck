@@ -1,0 +1,30 @@
+{
+  "_说明": [
+    "复制成 config.json 后修改（config.json 已被 .gitignore 忽略，不会上传）。",
+    "classes 想加几个加几个、名字随便改；也可以直接在生成的网页里增删班级。",
+    "lectures 列出这门课的所有讲次，转换后每个网页顶栏会出现下拉框，可以直接跳到别的讲次。",
+    "course_id 决定哪些网页共享进度：同一门课用同一个 id，换一门课换一个。"
+  ],
+
+  "course": "叙事理论与实践",
+  "course_id": "narrative",
+
+  "classes": [
+    { "id": "c1", "name": "班级1" },
+    { "id": "c2", "name": "班级2" },
+    { "id": "c3", "name": "班级3" },
+    { "id": "c4", "name": "班级4" },
+    { "id": "c5", "name": "班级5" },
+    { "id": "c6", "name": "班级6" },
+    { "id": "c7", "name": "班级7" },
+    { "id": "c8", "name": "班级8" }
+  ],
+
+  "pptx_dir": "./pptx",
+  "out_dir": "./web",
+
+  "lectures": [
+    { "id": "L01", "name": "导论",       "file": "第一讲·导论_课件.pptx",       "title": "第一讲·导论：叙事与我们" },
+    { "id": "L02", "name": "故事与话语",  "file": "第二讲·故事与话语_课件.pptx",  "title": "第二讲·故事与话语" }
+  ]
+}
