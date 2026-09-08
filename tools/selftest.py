@@ -79,7 +79,8 @@ with sync_playwright() as p:
     pg2 = b.new_page(viewport={"width": 1440, "height": 900})
     pg2.goto(URL + "#c5-L01:20")
     pg2.wait_for_timeout(700)
-    chk("班级5" in pg2.locator("#clsName").inner_text(), "hash 指定班级生效")
+    expect_cls = pg2.evaluate("DEFAULT_CLASSES.find(function(c){return c.id==='c5'}).name")
+    chk(expect_cls in pg2.locator("#clsName").inner_text(), "hash 指定班级生效")
     chk(pg2.locator("#pg").inner_text().startswith("20"), "hash 指定页码生效，直接跳到第20页")
     chk(pg2.locator(".clsOverlay.show").count() == 0, "hash 有效时不再弹选班")
 
