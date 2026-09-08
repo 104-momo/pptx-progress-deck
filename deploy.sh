@@ -19,8 +19,7 @@ api() { curl -s --max-time 30 -H "Authorization: Bearer $TOKEN" \
 LOGIN=$(api https://api.github.com/user | python3 -c "import sys,json;print(json.load(sys.stdin)['login'])")
 echo "✓ 已认证为：$LOGIN"
 
-PRIVATE=true
-[ "$VIS" = "public" ] && PRIVATE=false
+if [ "$VIS" = "public" ]; then PRIVATE=False; else PRIVATE=True; fi
 
 # 仓库已存在则跳过创建
 CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 20 \
