@@ -150,6 +150,7 @@ pptx-progress-deck/
 │  ├─ render.py            JSON + 模板 → 单文件网页
 │  ├─ deck_template.html   网页外壳 + 断点系统（全部功能都在这里）
 │  └─ selftest.py          浏览器端自测（需要 playwright）
+├─ api_push.py            受限网络下用 Git Data API 推送（保留提交历史）
 ├─ examples/               界面截图
 └─ build/                  中间层 JSON（转换时自动生成，可在里面微调坐标后重新渲染）
 ```
