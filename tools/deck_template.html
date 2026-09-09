@@ -72,6 +72,48 @@ table.dt{border-collapse:collapse;width:100%;table-layout:fixed}
 table.dt td{border:1px solid var(--line);padding:6px 8px;vertical-align:top}
 table.dt td .p{white-space:pre-wrap}
 
+/* ---------- 编辑模式（G2=B 自研精简编辑器） ---------- */
+#edToolbar{
+  position:fixed;right:14px;top:54px;z-index:160;display:none;gap:6px;align-items:center;
+  background:rgba(27,40,56,.97);border:1px solid #35485c;border-radius:9px;padding:6px 8px;
+  box-shadow:0 10px 34px rgba(0,0,0,.45);flex-wrap:wrap;max-width:60vw;justify-content:flex-end;
+}
+#edToolbar.show{display:flex}
+#edToolbar .tb-btn{padding:4px 10px;font-size:12.5px}
+#edToolbar .tb-btn:disabled{opacity:.35;cursor:default}
+#edToolbar .ed-fs{display:inline-flex;align-items:center;gap:2px}
+#edToolbar .ed-fs #edFsVal{width:46px;height:24px;padding:0 4px;font-size:12px;color:#e8eef5;background:#1b2838;border:1px solid #35485c;border-radius:4px;text-align:center}
+#edToolbar .ed-fs #edFsVal:disabled{opacity:.35}
+#edToolbar .ed-fs .tb-btn{padding:2px 8px;font-size:12px}
+#edToolbar .sep{width:1px;height:18px;background:#35485c}
+#edToolbar .tb-btn.on{background:#e8825a;color:#fff}
+body.editing .sh{cursor:move}
+body.editing .sh.tf-editing,.sh .tf.editing{outline:none}
+.sh.sel{outline:2px solid var(--orange);outline-offset:0;z-index:55}
+#selbox{
+  position:absolute;border:2px solid var(--orange);pointer-events:none;z-index:60;display:none;
+  box-shadow:0 0 0 1px rgba(0,0,0,.25);
+}
+#selbox.show{display:block}
+#selbox.crop{border:2px dashed #ffd166;box-shadow:none}
+#selbox.crop i{background:#ffd166;border-color:#fff}
+#selbox i{
+  position:absolute;width:11px;height:11px;background:#fff;border:2px solid var(--orange);
+  border-radius:3px;pointer-events:auto;box-sizing:border-box;
+}
+#selbox i[data-dir="n"],#selbox i[data-dir="s"]{left:50%;margin-left:-5px;cursor:ns-resize}
+#selbox i[data-dir="e"],#selbox i[data-dir="w"]{top:50%;margin-top:-5px;cursor:ew-resize}
+#selbox i[data-dir="n"]{top:-6px}
+#selbox i[data-dir="s"]{bottom:-6px}
+#selbox i[data-dir="w"]{left:-6px}
+#selbox i[data-dir="e"]{right:-6px}
+#selbox i[data-dir="nw"],#selbox i[data-dir="se"]{cursor:nwse-resize}
+#selbox i[data-dir="ne"],#selbox i[data-dir="sw"]{cursor:nesw-resize}
+#selbox i[data-dir="nw"]{left:-6px;top:-6px}
+#selbox i[data-dir="ne"]{right:-6px;top:-6px}
+#selbox i[data-dir="sw"]{left:-6px;bottom:-6px}
+#selbox i[data-dir="se"]{right:-6px;bottom:-6px}
+
 /* ---------- 底栏 ---------- */
 #botbar{
   flex:0 0 34px;display:flex;align-items:center;gap:8px;padding:0 12px;
@@ -246,18 +288,53 @@ body.hide-ui #topbar,body.hide-ui #botbar{display:none}
   <button class="tb-btn" id="clsBtn"><span class="swatch"></span><span id="clsName">选择班级</span></button>
   <button class="tb-btn" id="ovBtn">总览 <kbd>Esc</kbd></button>
   <button class="tb-btn" id="noteBtn">备注 <kbd>N</kbd></button>
-  <button class="tb-btn" id="impBtn" title="导入进度备份">导入</button>
+  <button class="tb-btn" id="editBtn" title="编辑模式 (E)：选择 / 移动 / 缩放 / 改字">编辑 <kbd>E</kbd></button>
+  <button class="tb-btn" id="pptxBtn" title="在浏览器里直接导入 .pptx 课件（无需转换工具）">导入PPT</button>
+  <button class="tb-btn" id="impBtn" title="导入进度备份或工程数据（.json）；选 .pptx 也会自动识别">导入备份</button>
   <button class="tb-btn" id="dataBtn">备份</button>
+  <button class="tb-btn" id="syncCodeBtn" title="生成同步码跨设备传课件，或输入同步码恢复">同步码</button>
+  <button class="tb-btn" id="bucketBtn" title="对象存储云同步（需配置桶）">云同步</button>
   <span id="pg">1 / __TOTAL__</span>
   <button class="tb-btn" id="hideBtn" title="隐藏界面 (H)">⤢</button>
 </div>
 
 <!-- ======== 舞台 ======== -->
+<!-- ======== 内嵌工程数据（IR）：产物同时是放映器、编辑器和数据载体 ======== -->
+<script type="application/json" id="deck-data">__DECK_DATA__</script>
+<!-- ======== 浏览器端 PPTX 导入器（tools/pptx-import 打包，未构建时为空） ======== -->
+<script>__PPTX_IMPORT_JS__</script>
+
 <div id="viewport">
   <div id="stage"><div id="deck">
 __SLIDES__
-  </div></div>
+  </div>
+  <!-- 编辑选择框（8 向缩放手柄） -->
+  <div id="selbox"><i data-dir="n"></i><i data-dir="ne"></i><i data-dir="e"></i><i data-dir="se"></i><i data-dir="s"></i><i data-dir="sw"></i><i data-dir="w"></i><i data-dir="nw"></i></div>
+  </div>
 </div>
+
+<!-- 编辑工具条 -->
+<div id="edToolbar">
+  <button class="tb-btn" id="edUndo" title="撤销 (Ctrl+Z)">撤销</button>
+  <button class="tb-btn" id="edRedo" title="重做 (Ctrl+Y)">重做</button>
+  <span class="sep"></span>
+  <button class="tb-btn" id="edDup" title="复制选中元素 (Ctrl+D)">复制</button>
+  <button class="tb-btn" id="edDel" title="删除选中元素 (Delete)">删除</button>
+  <span class="sep"></span>
+  <span class="ed-fs" title="选中文字框后调节字号（px）">
+    <button class="tb-btn" id="edFsMinus">A−</button>
+    <input id="edFsVal" type="number" min="8" max="300" step="1" title="字号 px">
+    <button class="tb-btn" id="edFsPlus">A+</button>
+  </span>
+  <span class="sep"></span>
+  <button class="tb-btn" id="edImg" title="在当前页插入本地图片">加图片</button>
+  <button class="tb-btn" id="edFit" title="图片填充模式：等比/铺满/拉伸">填充</button>
+  <button class="tb-btn" id="edCrop" title="裁剪图片">裁剪</button>
+  <span class="sep"></span>
+  <button class="tb-btn" id="edSave" title="把当前编辑结果存成一个新的单文件课件">保存</button>
+  <button class="tb-btn" id="edDone" title="完成编辑 (Esc)">完成</button>
+</div>
+<input type="file" id="edImgFile" accept="image/*" style="display:none">
 
 <!-- ======== 底栏 ======== -->
 <div id="botbar">
@@ -315,7 +392,7 @@ __SLIDES__
   </div>
 </div>
 
-<input type="file" id="fileIn" accept="application/json,.json" style="display:none">
+<input type="file" id="fileIn" accept=".json,.pptx,application/json,application/vnd.openxmlformats-officedocument.presentationml.presentation" style="display:none">
 
 <script>
 /* ================= 常量（由 convert.py 注入） ================= */
@@ -330,6 +407,14 @@ var DEFAULT_CLASSES = __CLASSES__;
 /* 同一门课的其它讲次，用于顶栏下拉跳转：[{id,name,file,title}] */
 var LECTURES = __LECTURES__;
 var CLR = ["#E8825A","#2C5F7C","#D4A574","#7F8C9B","#9C6B4E","#4E7C8C","#A98C5F","#6B8E7A"];
+
+/* ================= 内嵌工程数据（IR） ================= */
+var DECK = null;
+(function(){
+  var el = document.getElementById("deck-data");
+  if(!el) return;
+  try{ DECK = JSON.parse(el.textContent); }catch(e){ DECK = null; }
+})();
 
 /* ================= 数据层 ================= */
 var S = null;
@@ -368,7 +453,19 @@ function delCls(cid){
   toast("已删除 "+nm);
 }
 function load(){
-  try{ var raw = localStorage.getItem(KEY); if(raw){ var o=JSON.parse(raw); if(o&&o.classes) return o; } }catch(e){}
+  try{
+    var raw = localStorage.getItem(KEY);
+    if(raw){ var o=JSON.parse(raw); if(o&&o.classes) return o; }
+    /* M3：本地无进度时，从文件内嵌的 progress-data 恢复（换设备打开即用） */
+    var el=document.getElementById("progress-data");
+    if(el&&el.textContent){
+      var p=JSON.parse(el.textContent);
+      if(p&&p.classes){
+        localStorage.setItem(KEY,JSON.stringify(p));
+        return p;
+      }
+    }
+  }catch(e){}
   return defaults();
 }
 function save(){ try{ localStorage.setItem(KEY, JSON.stringify(S)); }catch(e){ toast("浏览器不允许保存数据，请用「数据→导出」备份"); } }
@@ -415,6 +512,94 @@ function applyHash(){
   return h.map[LID]?h.map[LID]:0;
 }
 
+/* ================= 运行时渲染器（IR → slide HTML，与 tools/render.py 逻辑同构） ================= */
+function famJS(name){
+  if(!name) return "var(--sans)";
+  var n=String(name).toLowerCase();
+  if(["georgia","times new roman","宋体","simsun","songti sc"].indexOf(n)>=0)
+    return "'"+name+"','Songti SC','SimSun',serif";
+  if(["微软雅黑","microsoft yahei"].indexOf(n)>=0)
+    return "'"+name+"','PingFang SC',sans-serif";
+  return "'"+name+"','PingFang SC','Microsoft YaHei',sans-serif";
+}
+function runHTML(r){
+  var st=[];
+  if(r.s) st.push("font-size:"+r.s+"px");
+  if(r.f) st.push("font-family:"+famJS(r.f));
+  if(r.b) st.push("font-weight:700");
+  if(r.i) st.push("font-style:italic");
+  if(r.u) st.push("text-decoration:underline");
+  if(r.c) st.push("color:"+r.c);
+  var txt=esc(r.tx==null?"":r.tx);
+  if(!txt) return "";
+  return '<span style="'+st.join(";")+'">'+txt+'</span>';
+}
+function paraHTML(p){
+  var st=["text-align:"+(p.al||"left")];
+  if(p.lh) st.push("line-height:"+(p.lsu==="x"?(p.lh):(p.lh+"px")));
+  if(p.sb) st.push("margin-top:"+p.sb+"px");
+  if(p.sa) st.push("margin-bottom:"+p.sa+"px");
+  var inner="";
+  (p.runs||[]).forEach(function(r){ inner+=runHTML(r); });
+  if(!inner.trim()) inner="<span>&nbsp;</span>";
+  return '<div class="p" style="'+st.join(";")+'">'+inner+'</div>';
+}
+function textShape(sh,i){
+  var st=["left:"+sh.x+"px","top:"+sh.y+"px","width:"+sh.w+"px","height:"+sh.h+"px"];
+  if(sh.fill) st.push("background:"+sh.fill);
+  if(sh.radius) st.push("border-radius:"+sh.radius+"px");
+  var acls={"middle":"mid","top":"top","bottom":"bot"}[String(sh.anchor||"top").toLowerCase()]||"top";
+  var paras=(sh.p||[]).map(paraHTML).join("");
+  return '<div class="sh" data-sh="'+i+'" style="'+st.join(";")+'"><div class="tf '+acls+'">'+paras+'</div></div>';
+}
+function tableShape(sh,i){
+  var st=["left:"+sh.x+"px","top:"+sh.y+"px","width:"+sh.w+"px"];
+  var s='<div class="sh" data-sh="'+i+'" style="'+st.join(";")+'"><table class="dt">';
+  if(sh.colW&&sh.colW.length){ s+="<colgroup>"; sh.colW.forEach(function(w){ s+='<col style="width:'+w+'px">'; }); s+="</colgroup>"; }
+  (sh.rows||[]).forEach(function(row){
+    s+="<tr>";
+    (row.cells||[]).forEach(function(cell){
+      var cs=[];
+      if(cell.fill) cs.push("background:"+cell.fill);
+      if(row.h) cs.push("height:"+row.h+"px");
+      var inner=(cell.p||[]).map(paraHTML).join("");
+      s+='<td style="'+cs.join(";")+'">'+inner+"</td>";
+    });
+    s+="</tr>";
+  });
+  s+="</table></div>";
+  return s;
+}
+function imgShape(sh,i){
+  var st=["left:"+sh.x+"px","top:"+sh.y+"px","width:"+sh.w+"px","height:"+sh.h+"px"];
+  var imgSt=[];
+  if(sh.fit) imgSt.push("object-fit:"+sh.fit);
+  if(sh.crop){
+    var c=sh.crop;
+    imgSt.push("clip-path:inset("+(c.t||0)+"px "+(c.r||0)+"px "+(c.b||0)+"px "+(c.l||0)+"px)");
+  }
+  return '<div class="sh" data-sh="'+i+'" style="'+st.join(";")+'"><img class="shapeimg" src="'+esc(sh.src||"")+'" style="'+imgSt.join(";")+'" alt=""></div>';
+}
+function renderSlideBody(s){
+  var body="";
+  (s.shapes||[]).forEach(function(sh,i){
+    if(sh.t==="t") body+=textShape(sh,i);
+    else if(sh.t==="tb") body+=tableShape(sh,i);
+    else if(sh.t==="i") body+=imgShape(sh,i);
+  });
+  return body;
+}
+function slideHTML(s){
+  return '<section class="slide" data-n="'+s.n+'" style="background:'+esc(s.bg||"#FFFFFF")+'">'+renderSlideBody(s)+"</section>";
+}
+function renderSlides(deck){
+  return (deck.slides||[]).map(slideHTML);
+}
+function renderSlideAt(i){
+  var el=document.querySelector('.slide[data-n="'+(i+1)+'"]');
+  if(el&&DECK&&DECK.slides[i]) el.innerHTML=renderSlideBody(DECK.slides[i]);
+}
+
 /* ================= 视图控制 ================= */
 var idx=0;
 var $=function(s){return document.querySelector(s)};
@@ -427,6 +612,9 @@ function fit(){
   stage.style.transform="translate(-50%,-50%) scale("+s+")";
 }
 function go(n,silent){
+  if(drag) drag=null;
+  if(editingText) commitTextEdit();
+  var _bx=$("#selbox"); if(_bx) _bx.classList.remove("show");
   n=Math.max(0,Math.min(TOTAL-1,n)); idx=n;
   deck.style.transform="translateX("+(-idx*1280)+"px)";
   $("#pg").textContent=(idx+1)+" / "+TOTAL;
@@ -617,20 +805,117 @@ function exportJSON(){
   a.click(); setTimeout(function(){URL.revokeObjectURL(a.href)},3000);
   toast("已导出备份文件");
 }
+/* 导出工程数据（IR JSON：全部课件内容，可再次导入/由其它工具消费） */
+function exportDeckJSON(){
+  if(!DECK){ toast("本页没有工程数据（IR），无法导出"); return; }
+  var blob=new Blob([JSON.stringify(DECK,null,2)],{type:"application/json"});
+  var a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  a.download=(DECK.title||DECK.id||"deck")+"-工程数据-"+new Date().toISOString().slice(0,10)+".json";
+  a.click();
+  setTimeout(function(){ URL.revokeObjectURL(a.href); },3000);
+  toast("已导出工程数据（含全部课件内容 IR）");
+}
+/* 导入工程数据后，清掉超出总页数的断点，避免残页引用 */
+function sanitizeProgress(){
+  if(!S||!S.progress) return;
+  for(var cid in S.progress){ for(var lid in S.progress[cid]){
+    var p=S.progress[cid][lid];
+    if(!p||!p.p||p.p<=0||p.p>TOTAL) delete S.progress[cid][lid];
+  }}
+}
+/* 应用一份工程数据（IR）：重渲染课件，进度/班级保持本页配置 */
+function applyDeck(deck){
+  DECK=deck;
+  if(editingText) commitTextEdit();
+  drag=null; selSlide=-1; selShape=-1;
+  undoStack=[]; redoStack=[]; renderEditUI(); hideSelBox();
+  LID=deck.id||LID; TITLE=deck.title||TITLE;
+  document.title=TITLE;
+  var tt=document.querySelector(".tb-title"); if(tt) tt.textContent=TITLE;
+  var sub=document.querySelector(".tb-sub"); if(sub) sub.textContent=LID;
+  document.getElementById("deck").innerHTML=renderSlides(DECK).join("\n");
+  TOTAL=DECK.slides.length;
+  buildDots(); sanitizeProgress(); save();
+  idx=0; go(0,true); renderTopbar(); writeHash();
+  toast("已导入工程数据："+(TITLE||LID)+"（"+TOTAL+" 页，本次会话生效）");
+}
 $("#fileIn").onchange=function(e){
   var f=e.target.files[0]; if(!f) return;
+  e.target.value="";
+  /* 智能分流：.pptx 走浏览器内 PPT 导入，其余按 JSON 处理 */
+  if(/\.pptx$/i.test(f.name||"")){
+    if(window.PPTXImport&&typeof window.PPTXImport.fromFile==="function"){ importPptxFile(f); return; }
+    toast("当前文件未内置 PPT 导入器，请用「导入PPT」或重新转换产物"); return;
+  }
   var r=new FileReader();
   r.onload=function(){
     try{
       var o=JSON.parse(r.result);
-      if(!o.classes) throw 0;
-      S=o; if(!cur()) S.current=S.classes[0].id;
-      save(); renderCls(); renderTopbar(); autoJump(true); writeHash();
-      toast("已导入进度");
+      if(o&&o.slides&&Array.isArray(o.slides)){
+        if(!o.slides.length) throw 0;
+        applyDeck(o);              /* 工程数据（IR）→ 重渲染 */
+      }else if(o&&o.classes){
+        S=o; if(!cur()) S.current=S.classes[0].id;
+        sanitizeProgress(); save(); renderCls(); renderTopbar(); autoJump(true); writeHash();
+        toast("已导入进度");
+      }else{ throw 0; }
     }catch(err){ toast("文件格式不对，导入失败"); }
   };
-  r.readAsText(f); e.target.value="";
+  r.readAsText(f);
 };
+
+/* ================= 浏览器内导入 PPTX（第二阶段：解析在浏览器完成） ================= */
+function blobToDataURL(blob){
+  return new Promise(function(res,rej){
+    var fr=new FileReader();
+    fr.onload=function(){ res(fr.result); };
+    fr.onerror=function(){ rej(fr.error); };
+    fr.readAsDataURL(blob);
+  });
+}
+function importPptxFile(f){
+  if(!f) return;
+  var name=String(f.name||"").replace(/\.pptx$/i,"").replace(/[\\/:*?"<>|]/g,"_").slice(0,40)||"deck";
+  toast("正在浏览器内解析 "+name+" …");
+  window.PPTXImport.fromFile(f,{id:name,title:name}).then(function(deck){
+    /* 把 pptx-viewer 产生的 blob: 图片转 dataURL，确保保存后持久化 */
+    var imgs=[];
+    (deck.slides||[]).forEach(function(s){
+      (s.shapes||[]).forEach(function(sh){
+        if(sh.t==="i"&&sh.src&&sh.src.indexOf("blob:")===0) imgs.push(sh);
+      });
+    });
+    var finish=function(){
+      applyDeck(deck);
+      var sk=deck.skipped||{}, parts=Object.keys(sk).map(function(k){return k+":"+sk[k]});
+      toast("已导入 "+name+"（"+deck.slides.length+" 页）"+(parts.length?("；降级跳过 "+parts.join("，")):""));
+    };
+    if(!imgs.length){ finish(); return; }
+    var done=0;
+    imgs.forEach(function(sh){
+      fetch(sh.src).then(function(r){return r.blob()}).then(function(b){return blobToDataURL(b)}).then(function(d){
+        sh.src=d;
+      }).catch(function(){ /* 转换失败保留原 blob，至少当前会话可见 */ }).then(function(){
+        done++; if(done===imgs.length) finish();
+      });
+    });
+  }).catch(function(err){
+    toast("解析失败："+(err&&err.message?err.message:String(err)));
+  });
+}
+function initPptxImport(){
+  var inp=document.createElement("input");
+  inp.type="file"; inp.id="pptxFile";
+  inp.accept=".pptx,application/vnd.openxmlformats-officedocument.presentationml.presentation";
+  inp.style.display="none";
+  document.body.appendChild(inp);
+  inp.onchange=function(){
+    var f=inp.files[0]; inp.value="";
+    importPptxFile(f);
+  };
+  document.getElementById("pptxBtn").onclick=function(){ inp.click(); };
+}
 function copyLink(){
   writeHash(); var url=location.href;
   var ok=false;
@@ -640,6 +925,627 @@ function copyLink(){
   }catch(e){}
   toast(ok?("已复制带进度的网址，存成书签就能跨设备打开"):("请手动复制地址栏网址："+url));
 }
+
+/* ================= 编辑器（G2=B 自研精简：选择/移动/缩放/改字/撤销重做/删除/复制/保存） ================= */
+var EDIT=false, selSlide=-1, selShape=-1;
+var undoStack=[], redoStack=[];
+var drag=null, editingText=null, CROP_MODE=false;
+
+function selSh(){
+  if(selSlide<0||selShape<0||!DECK||!DECK.slides[selSlide]||!DECK.slides[selSlide].shapes[selShape]) return null;
+  return DECK.slides[selSlide].shapes[selShape];
+}
+function stageScale(){ var r=stage.getBoundingClientRect(); return (r.width/1280)||1; }
+function syncShape(si,hi){
+  var el=document.querySelector('.slide[data-n="'+(si+1)+'"] .sh[data-sh="'+hi+'"]');
+  var sh=DECK.slides[si]&&DECK.slides[si].shapes[hi];
+  if(el&&sh){ el.style.left=sh.x+"px"; el.style.top=sh.y+"px"; el.style.width=sh.w+"px"; el.style.height=sh.h+"px"; }
+}
+function hideSelBox(){ var b=$("#selbox"); if(b) b.classList.remove("show"); }
+function updateSelBox(){
+  var box=$("#selbox"); if(!box) return;
+  var sh=selSh();
+  if(!sh||!EDIT||!DECK){ hideSelBox(); return; }
+  var slideEl=document.querySelector('.slide[data-n="'+(selSlide+1)+'"]');
+  if(!slideEl){ hideSelBox(); return; }
+  var host=$("#stage");
+  if(box.parentElement!==host) host.appendChild(box);
+  if(CROP_MODE&&sh.t==="i"){
+    var c=sh.crop||{t:0,r:0,b:0,l:0};
+    box.style.left=(sh.x+c.l)+"px"; box.style.top=(sh.y+c.t)+"px";
+    box.style.width=Math.max(4,sh.w-c.l-c.r)+"px"; box.style.height=Math.max(4,sh.h-c.t-c.b)+"px";
+    box.classList.add("show","crop");
+    return;
+  }
+  box.classList.remove("crop");
+  box.style.left=sh.x+"px"; box.style.top=sh.y+"px";
+  box.style.width=sh.w+"px"; box.style.height=sh.h+"px";
+  box.classList.add("show");
+}
+function clearSel(){
+  if(CROP_MODE) exitCrop();
+  $$("#deck .sh.sel").forEach(function(el){ el.classList.remove("sel"); });
+  selSlide=-1; selShape=-1; hideSelBox(); renderEditUI();
+}
+function selectAt(si,hi){
+  $$("#deck .sh.sel").forEach(function(el){ el.classList.remove("sel"); });
+  selSlide=si; selShape=hi;
+  var el=document.querySelector('.slide[data-n="'+(si+1)+'"] .sh[data-sh="'+hi+'"]');
+  if(el) el.classList.add("sel");
+  updateSelBox(); renderEditUI();
+}
+function renderEditUI(){
+  var u=$("#edUndo"), r=$("#edRedo");
+  if(u) u.disabled=!undoStack.length;
+  if(r) r.disabled=!redoStack.length;
+  /* 字号控件：仅选中文本框时启用 */
+  var fs=$("#edFsVal"), minus=$("#edFsMinus"), plus=$("#edFsPlus");
+  if(fs){
+    var sh=selSh(), enabled=!!(sh&&sh.t==="t");
+    fs.disabled=!enabled;
+    if(minus) minus.disabled=!enabled;
+    if(plus) plus.disabled=!enabled;
+    if(enabled){
+      var cur=currentFontSize(sh);
+      if(cur&&document.activeElement!==fs) fs.value=cur;
+    } else if(document.activeElement!==fs){ fs.value=""; }
+  }
+  /* 图片按钮：仅选中图片时启用 */
+  var fitBtn=$("#edFit"), cropBtn=$("#edCrop");
+  var isImg=!!(sh&&sh.t==="i");
+  if(fitBtn) fitBtn.disabled=!isImg;
+  if(cropBtn){ cropBtn.disabled=!isImg; cropBtn.classList.toggle("on",CROP_MODE); }
+}
+function currentFontSize(sh){
+  if(!sh||!sh.p) return null;
+  for(var i=0;i<sh.p.length;i++){
+    var runs=sh.p[i].runs||[];
+    for(var j=0;j<runs.length;j++){ if(runs[j].s) return runs[j].s; }
+  }
+  /* 全部未显式设置（s=null）：取 DOM 实际渲染字号 */
+  var el=document.querySelector('.slide[data-n="'+(selSlide+1)+'"] .sh[data-sh="'+selShape+'"] .tf span');
+  if(el){ var fs=parseFloat(getComputedStyle(el).fontSize); if(fs) return Math.round(fs); }
+  return 16;
+}
+function setFontSize(size){
+  var sh=selSh(); if(!sh||sh.t!=="t") return;
+  var si=selSlide, hi=selShape;
+  size=Math.max(8,Math.min(300,Math.round(Number(size)||0)));
+  if(!size) return;
+  var before=JSON.parse(JSON.stringify(sh.p||[]));
+  (sh.p||[]).forEach(function(p){
+    (p.runs||[]).forEach(function(r){ r.s=size; });
+  });
+  var after=JSON.parse(JSON.stringify(sh.p));
+  renderSlideAt(si);
+  selectAt(si,hi);
+  if(JSON.stringify(before)===JSON.stringify(after)) return;   /* 无变化不入撤销栈 */
+  pushUndo({undo:function(){ DECK.slides[si].shapes[hi].p=before; renderSlideAt(si); selectAt(si,hi); },
+            redo:function(){ DECK.slides[si].shapes[hi].p=after; renderSlideAt(si); selectAt(si,hi); }});
+  toast("字号已设为 "+size+"px");
+}
+/* ---- 图片填充模式（contain 等比 / cover 铺满 / fill 拉伸） ---- */
+function setFit(){
+  var sh=selSh(); if(!sh||sh.t!=="i") return;
+  var si=selSlide, hi=selShape;
+  var order=["contain","cover","fill"];
+  var cur=sh.fit||"contain";
+  var next=order[(order.indexOf(cur)+1)%order.length];
+  var before=sh.fit||"contain";
+  sh.fit=next;
+  renderSlideAt(si); selectAt(si,hi);
+  pushUndo({undo:function(){ DECK.slides[si].shapes[hi].fit=before; renderSlideAt(si); selectAt(si,hi); },
+            redo:function(){ DECK.slides[si].shapes[hi].fit=next; renderSlideAt(si); selectAt(si,hi); }});
+  var label=next==="contain"?"等比(留空白)":next==="cover"?"铺满(裁切)":"拉伸";
+  toast("图片填充："+label);
+}
+/* ---- 图片裁剪（crop={t,r,b,l} 内缩 px；裁剪模式下 selbox 显示裁剪区域） ---- */
+function exitCrop(){
+  if(!CROP_MODE) return;
+  CROP_MODE=false;
+  var btn=$("#edCrop"); if(btn) btn.classList.remove("on");
+  updateSelBox(); renderEditUI();
+}
+function toggleCrop(){
+  var sh=selSh(); if(!sh||sh.t!=="i") return;
+  if(CROP_MODE){ exitCrop(); return; }
+  if(!sh.crop) sh.crop={t:0,r:0,b:0,l:0};
+  CROP_MODE=true;
+  $("#edCrop").classList.add("on");
+  updateSelBox(); renderEditUI();
+  toast("裁剪模式：拖手柄调整边界，拖动平移区域，再点「裁剪」完成");
+}
+function pushUndo(u){ undoStack.push(u); if(undoStack.length>60) undoStack.shift(); redoStack.length=0; renderEditUI(); }
+function undo(){
+  if(editingText) commitTextEdit();
+  var u=undoStack.pop(); if(!u) return;
+  u.undo(); redoStack.push(u); renderEditUI(); updateSelBox();
+}
+function redo(){
+  if(editingText) commitTextEdit();
+  var u=redoStack.pop(); if(!u) return;
+  u.redo(); undoStack.push(u); renderEditUI(); updateSelBox();
+}
+function setEdit(on){
+  EDIT=on;
+  document.body.classList.toggle("editing",on);
+  var b=$("#editBtn"); if(b) b.classList.toggle("on",on);
+  var t=$("#edToolbar"); if(t) t.classList.toggle("show",on);
+  if(!on){ if(editingText) commitTextEdit(); if(CROP_MODE) exitCrop(); drag=null; clearSel(); }
+  else toast("编辑模式：点选元素，拖动移动，拖手柄缩放，双击改字，Delete 删除，Ctrl+Z/Y 撤销重做");
+}
+
+/* ---- 移动 / 缩放（舞台坐标换算，写回 IR） ---- */
+$("#viewport").addEventListener("mousedown",function(e){
+  if(!EDIT||e.button!==0) return;
+  var t=e.target;
+  var handle=t.closest?t.closest("#selbox i"):null;
+  if(handle){
+    e.preventDefault();
+    var sh=selSh(); if(!sh) return;
+    if(CROP_MODE&&sh.t==="i"){
+      var c=sh.crop||{t:0,r:0,b:0,l:0};
+      drag={mode:"cropResize",dir:handle.getAttribute("data-dir"),sx:e.clientX,sy:e.clientY,
+            ol:c.l,or:c.r,ot:c.t,ob:c.b,ow:sh.w,oh:sh.h};
+    }else{
+      drag={mode:"resize",dir:handle.getAttribute("data-dir"),sx:e.clientX,sy:e.clientY,ox:sh.x,oy:sh.y,ow:sh.w,oh:sh.h};
+    }
+    return;
+  }
+  var shEl=t.closest?t.closest(".sh"):null;
+  if(shEl&&shEl.closest(".slide")){
+    e.preventDefault();
+    var slideEl=shEl.closest(".slide");
+    var si=parseInt(slideEl.getAttribute("data-n"),10)-1;
+    var hi=parseInt(shEl.getAttribute("data-sh"),10);
+    var sh=DECK.slides[si]&&DECK.slides[si].shapes[hi];
+    if(!sh) return;
+    if(editingText) commitTextEdit();
+    selectAt(si,hi);
+    if(CROP_MODE&&sh.t==="i"){
+      var c2=sh.crop||{t:0,r:0,b:0,l:0};
+      drag={mode:"cropMove",sx:e.clientX,sy:e.clientY,ol:c2.l,or:c2.r,ot:c2.t,ob:c2.b};
+    }else{
+      drag={mode:"move",si:si,hi:hi,sx:e.clientX,sy:e.clientY,ox:sh.x,oy:sh.y};
+    }
+    return;
+  }
+  clearSel();
+});
+document.addEventListener("mousemove",function(e){
+  if(!drag) return;
+  e.preventDefault();
+  var sc=stageScale();
+  var dx=(e.clientX-drag.sx)/sc, dy=(e.clientY-drag.sy)/sc;
+  if(drag.mode==="move"){
+    var sh=DECK.slides[drag.si].shapes[drag.hi];
+    sh.x=Math.round(drag.ox+dx); sh.y=Math.round(drag.oy+dy);
+    var el=document.querySelector('.slide[data-n="'+(drag.si+1)+'"] .sh[data-sh="'+drag.hi+'"]');
+    if(el){ el.style.left=sh.x+"px"; el.style.top=sh.y+"px"; }
+    updateSelBox();
+  }else if(drag.mode==="resize"){
+    var sh2=selSh(); if(!sh2) return;
+    var d=drag.dir, x=drag.ox, y=drag.oy, w=drag.ow, h=drag.oh;
+    if(d.indexOf("w")>=0){ x=drag.ox+dx; w=drag.ow-dx; }
+    if(d.indexOf("e")>=0){ w=drag.ow+dx; }
+    if(d.indexOf("n")>=0){ y=drag.oy+dy; h=drag.oh-dy; }
+    if(d.indexOf("s")>=0){ h=drag.oh+dy; }
+    if(w<8){ if(d.indexOf("w")>=0) x=drag.ox+drag.ow-8; w=8; }
+    if(h<8){ if(d.indexOf("n")>=0) y=drag.oy+drag.oh-8; h=8; }
+    sh2.x=Math.round(x); sh2.y=Math.round(y); sh2.w=Math.round(w); sh2.h=Math.round(h);
+    syncShape(selSlide,selShape);
+    updateSelBox();
+  }else if(drag.mode==="cropResize"){
+    var sh3=selSh(); if(!sh3||!sh3.crop) return;
+    var c=sh3.crop, dir=drag.dir;
+    /* crop 是内缩量：e 手柄右拖→r 减小；w 左拖→l 减小；n 上拖→t 减小；s 下拖→b 减小 */
+    if(dir.indexOf("e")>=0){ c.r=Math.max(0,Math.round(drag.or-dx)); }
+    if(dir.indexOf("w")>=0){ c.l=Math.max(0,Math.round(drag.ol+dx)); }
+    if(dir.indexOf("s")>=0){ c.b=Math.max(0,Math.round(drag.ob-dy)); }
+    if(dir.indexOf("n")>=0){ c.t=Math.max(0,Math.round(drag.ot+dy)); }
+    /* 约束：裁剪区域至少 8px */
+    if(c.l+c.r>sh3.w-8){ c.r=sh3.w-8-c.l; if(c.r<0){c.r=0;c.l=sh3.w-8;} }
+    if(c.t+c.b>sh3.h-8){ c.b=sh3.h-8-c.t; if(c.b<0){c.b=0;c.t=sh3.h-8;} }
+    renderSlideAt(selSlide); updateSelBox();
+  }else if(drag.mode==="cropMove"){
+    var sh4=selSh(); if(!sh4||!sh4.crop) return;
+    var c4=sh4.crop;
+    c4.l=Math.max(0,Math.round(drag.ol+dx)); c4.r=Math.max(0,Math.round(drag.or-dx));
+    c4.t=Math.max(0,Math.round(drag.ot+dy)); c4.b=Math.max(0,Math.round(drag.ob-dy));
+    /* 约束区域不超出形状 */
+    if(c4.l+c4.r>sh4.w-8){ var ex=c4.l+c4.r-(sh4.w-8); c4.l=Math.max(0,c4.l-ex/2); c4.r=Math.max(0,c4.r-ex/2); }
+    if(c4.t+c4.b>sh4.h-8){ var ey=c4.t+c4.b-(sh4.h-8); c4.t=Math.max(0,c4.t-ey/2); c4.b=Math.max(0,c4.b-ey/2); }
+    renderSlideAt(selSlide); updateSelBox();
+  }
+});
+document.addEventListener("mouseup",function(){
+  if(!drag) return;
+  var d=drag; drag=null;
+  if(d.mode==="move"){
+    var sh=DECK.slides[d.si].shapes[d.hi];
+    if(sh.x!==d.ox||sh.y!==d.oy){
+      var ax=sh.x, ay=sh.y;
+      pushUndo({undo:function(){ sh.x=d.ox; sh.y=d.oy; syncShape(d.si,d.hi); updateSelBox(); },
+                redo:function(){ sh.x=ax; sh.y=ay; syncShape(d.si,d.hi); updateSelBox(); }});
+    }
+  }else if(d.mode==="resize"){
+    var sh2=selSh(); if(!sh2) return;
+    var rsi=selSlide, rhi=selShape;
+    if(sh2.x!==d.ox||sh2.y!==d.oy||sh2.w!==d.ow||sh2.h!==d.oh){
+      var ax2=sh2.x, ay2=sh2.y, aw2=sh2.w, ah2=sh2.h;
+      pushUndo({undo:function(){ sh2.x=d.ox; sh2.y=d.oy; sh2.w=d.ow; sh2.h=d.oh; syncShape(rsi,rhi); updateSelBox(); },
+                redo:function(){ sh2.x=ax2; sh2.y=ay2; sh2.w=aw2; sh2.h=ah2; syncShape(rsi,rhi); updateSelBox(); }});
+    }
+  }else if(d.mode==="cropResize"||d.mode==="cropMove"){
+    var sh5=selSh(); if(!sh5||!sh5.crop) return;
+    var csi=selSlide, chi=selShape;
+    var before={t:d.ot,r:d.or,b:d.ob,l:d.ol};
+    var after={t:sh5.crop.t,r:sh5.crop.r,b:sh5.crop.b,l:sh5.crop.l};
+    if(before.t!==after.t||before.r!==after.r||before.b!==after.b||before.l!==after.l){
+      pushUndo({undo:function(){ DECK.slides[csi].shapes[chi].crop={t:before.t,r:before.r,b:before.b,l:before.l}; renderSlideAt(csi); selectAt(csi,chi); },
+                redo:function(){ DECK.slides[csi].shapes[chi].crop={t:after.t,r:after.r,b:after.b,l:after.l}; renderSlideAt(csi); selectAt(csi,chi); }});
+    }
+  }
+});
+
+/* ---- 双击改字（文本框；编辑后段落级合并为单 run，保留段首 run 样式） ---- */
+$("#viewport").addEventListener("dblclick",function(e){
+  if(!EDIT) return;
+  var shEl=e.target.closest?e.target.closest(".sh"):null;
+  if(!shEl||!shEl.closest(".slide")) return;
+  var slideEl=shEl.closest(".slide");
+  var si=parseInt(slideEl.getAttribute("data-n"),10)-1;
+  var hi=parseInt(shEl.getAttribute("data-sh"),10);
+  var sh=DECK.slides[si]&&DECK.slides[si].shapes[hi];
+  if(!sh||sh.t!=="t") return;
+  e.preventDefault();
+  selectAt(si,hi);
+  var tf=shEl.querySelector(".tf"); if(!tf) return;
+  var saved=(sh.p||[]).map(function(p){
+    return {p:p, text:(p.runs||[]).map(function(r){return r.tx||""}).join("")};
+  });
+  tf.setAttribute("contenteditable","true");
+  tf.classList.add("editing");
+  editingText={tf:tf,si:si,hi:hi,saved:saved,sh:sh};
+  tf.addEventListener("blur",function(){ if(editingText) commitTextEdit(); },{once:true});
+  var r=document.createRange(); r.selectNodeContents(tf); r.collapse(false);
+  var s=window.getSelection(); s.removeAllRanges(); s.addRange(r);
+});
+function commitTextEdit(){
+  var et=editingText; editingText=null;
+  if(!et) return;
+  var tf=et.tf;
+  tf.setAttribute("contenteditable","false");
+  tf.classList.remove("editing");
+  var pEls=tf.querySelectorAll(".p");
+  var newP=[], i=0;
+  pEls.forEach(function(pEl){
+    var text=pEl.textContent.replace(/\u00a0/g," ").replace(/\s+$/,"");
+    var orig=et.saved[Math.min(i,et.saved.length-1)];
+    var base=orig?orig.p:{};
+    var np={runs:[]};
+    if(text){
+      var ro={tx:text};
+      var r0=base.runs&&base.runs[0];
+      if(r0){ if(r0.s)ro.s=r0.s; if(r0.f)ro.f=r0.f; if(r0.c)ro.c=r0.c; if(r0.b)ro.b=r0.b; if(r0.i)ro.i=r0.i; if(r0.u)ro.u=r0.u; }
+      np.runs=[ro];
+    }
+    if(base.al)np.al=base.al; if(base.lh)np.lh=base.lh; if(base.lsu)np.lsu=base.lsu;
+    if(base.sb)np.sb=base.sb; if(base.sa)np.sa=base.sa;
+    newP.push(np); i++;
+  });
+  if(!newP.length) newP=[{runs:[]}];
+  var sh=et.sh, si=et.si, hi=et.hi;
+  var before=JSON.parse(JSON.stringify(sh.p||[]));
+  sh.p=newP;
+  renderSlideAt(si);
+  selectAt(si,hi);
+  var after=JSON.parse(JSON.stringify(sh.p));
+  pushUndo({undo:function(){ DECK.slides[si].shapes[hi].p=before; renderSlideAt(si); selectAt(si,hi); },
+            redo:function(){ DECK.slides[si].shapes[hi].p=after; renderSlideAt(si); selectAt(si,hi); }});
+}
+
+/* ---- 删除 / 复制 ---- */
+function delShape(){
+  var sh=selSh(); if(!sh) return;
+  var si=selSlide, hi=selShape;
+  var backup=DECK.slides[si].shapes.slice();
+  DECK.slides[si].shapes.splice(hi,1);
+  clearSel();
+  renderSlideAt(si);
+  pushUndo({undo:function(){ DECK.slides[si].shapes=backup.slice(); renderSlideAt(si); },
+            redo:function(){ DECK.slides[si].shapes.splice(hi,1); renderSlideAt(si); }});
+  toast("已删除元素");
+}
+function dupShape(){
+  var sh=selSh(); if(!sh) return;
+  var copy=JSON.parse(JSON.stringify(sh));
+  copy.x+=24; copy.y+=24;
+  var si=selSlide, hi=selShape+1;
+  DECK.slides[si].shapes.splice(hi,0,copy);
+  renderSlideAt(si);
+  selectAt(si,hi);
+  pushUndo({undo:function(){ DECK.slides[si].shapes.splice(hi,1); renderSlideAt(si); clearSel(); },
+            redo:function(){ DECK.slides[si].shapes.splice(hi,0,copy); renderSlideAt(si); selectAt(si,hi); }});
+  toast("已复制元素（+24px 偏移）");
+}
+
+/* ---- 保存：把当前编辑结果导出为新单文件 HTML（数据跟文件走） ---- */
+function saveAsHTML(){
+  if(!DECK||!DECK.slides||!DECK.slides.length){ toast("没有课件数据"); return; }
+  /* 用 DOM 更新数据，避免字符串替换被 JS 代码自身干扰 */
+  var deckEl=document.getElementById("deck-data");
+  if(deckEl) deckEl.textContent=JSON.stringify(DECK).replace(/</g,"\\u003c");
+  var progEl=document.getElementById("progress-data");
+  if(!progEl){
+    progEl=document.createElement("script");
+    progEl.type="application/json";
+    progEl.id="progress-data";
+    if(deckEl&&deckEl.parentNode) deckEl.parentNode.insertBefore(progEl,deckEl.nextSibling);
+  }
+  progEl.textContent=JSON.stringify(S).replace(/</g,"\\u003c");
+  var html="<!DOCTYPE html>\n"+document.documentElement.outerHTML;
+  var blob=new Blob([html],{type:"text/html;charset=utf-8"});
+  var a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  a.download=(DECK.title||"deck")+".html";
+  a.click(); setTimeout(function(){URL.revokeObjectURL(a.href)},3000);
+  toast("已保存：课件内容和上课进度都在这个 HTML 里，拷到别的电脑打开直接用");
+  /* 保存成功后清草稿 */
+  if(DECK&&DECK.id) clearDraft(DECK.id);
+}
+
+/* ================= M3：IndexedDB 草稿自动保存 ================= */
+var DB_NAME="pptx-deck-drafts", DB_STORE="drafts", _draftTimer=null;
+function openDB(){
+  return new Promise(function(res,rej){
+    try{
+      var r=indexedDB.open(DB_NAME,1);
+      r.onupgradeneeded=function(){ if(!r.result.objectStoreNames.contains(DB_STORE)) r.result.createObjectStore(DB_STORE); };
+      r.onsuccess=function(){ res(r.result); };
+      r.onerror=function(){ rej(r.error); };
+    }catch(e){ rej(e); }
+  });
+}
+function saveDraft(id, deck){
+  if(!id||!deck) return;
+  openDB().then(function(db){
+    var tx=db.transaction(DB_STORE,"readwrite");
+    tx.objectStore(DB_STORE).put({deck:JSON.parse(JSON.stringify(deck)), ts:Date.now()}, id);
+  }).catch(function(){});
+}
+function getDraft(id){
+  return openDB().then(function(db){
+    return new Promise(function(res,rej){
+      var r=db.transaction(DB_STORE).objectStore(DB_STORE).get(id);
+      r.onsuccess=function(){ res(r.result||null); };
+      r.onerror=function(){ rej(r.error); };
+    });
+  }).catch(function(){ return null; });
+}
+function clearDraft(id){
+  openDB().then(function(db){
+    var tx=db.transaction(DB_STORE,"readwrite");
+    tx.objectStore(DB_STORE).delete(id);
+  }).catch(function(){});
+}
+function scheduleDraftSave(){
+  if(!EDIT||!DECK||!DECK.id) return;
+  if(_draftTimer) clearTimeout(_draftTimer);
+  _draftTimer=setTimeout(function(){ saveDraft(DECK.id, DECK); }, 800);
+}
+/* pushUndo 时触发草稿保存（防抖） */
+var _origPushUndo=pushUndo;
+pushUndo=function(u){ _origPushUndo(u); scheduleDraftSave(); };
+/* 打开时检查草稿并提示恢复 */
+function checkDraftOnLoad(){
+  if(!DECK||!DECK.id) return;
+  getDraft(DECK.id).then(function(d){
+    if(!d||!d.deck||!d.deck.slides) return;
+    /* 草稿比当前数据新（页数不同或有编辑痕迹）才提示 */
+    var cur=JSON.stringify(DECK.slides).length;
+    var dr=JSON.stringify(d.deck.slides).length;
+    if(cur===dr&&JSON.stringify(DECK.slides)===JSON.stringify(d.deck.slides)) return;
+    if(confirm("检测到上次未保存的编辑草稿（"+new Date(d.ts).toLocaleString()+"），是否恢复？\n取消 = 丢弃草稿，使用原始课件")){
+      applyDeck(d.deck);
+      toast("已恢复草稿");
+    }else{
+      clearDraft(DECK.id);
+    }
+  });
+}
+
+/* ================= M3：同步码（无后端跨设备传课件） ================= */
+function abToB64(buf){
+  var bytes=new Uint8Array(buf), bin="";
+  for(var i=0;i<bytes.length;i++) bin+=String.fromCharCode(bytes[i]);
+  return btoa(bin);
+}
+function b64ToAB(b64){
+  var bin=atob(b64), bytes=new Uint8Array(bin.length);
+  for(var i=0;i<bin.length;i++) bytes[i]=bin.charCodeAt(i);
+  return bytes.buffer;
+}
+async function genSyncCode(){
+  if(!DECK||!DECK.slides||!DECK.slides.length){ toast("没有课件数据"); return ""; }
+  var json=JSON.stringify(DECK);
+  var code;
+  try{
+    var cs=new CompressionStream("gzip");
+    var w=cs.writable.getWriter();
+    w.write(new TextEncoder().encode(json)); w.close();
+    var buf=await new Response(cs.readable).arrayBuffer();
+    code="deckgz:"+abToB64(buf);
+  }catch(e){
+    code="deck:"+btoa(unescape(encodeURIComponent(json)));
+  }
+  return code;
+}
+async function applySyncCode(code){
+  code=(code||"").trim();
+  if(!code) return;
+  var json;
+  if(code.indexOf("deckgz:")===0){
+    var buf=b64ToAB(code.slice(7));
+    var ds=new DecompressionStream("gzip");
+    var w=ds.writable.getWriter(); w.write(buf); w.close();
+    json=new TextDecoder().decode(await new Response(ds.readable).arrayBuffer());
+  }else if(code.indexOf("deck:")===0){
+    json=decodeURIComponent(escape(atob(code.slice(5))));
+  }else{
+    throw new Error("同步码格式不对（应以 deck: 或 deckgz: 开头）");
+  }
+  var deck=JSON.parse(json);
+  if(!deck.slides||!deck.slides.length) throw new Error("同步码里没有课件数据");
+  applyDeck(deck);
+  toast("已从同步码恢复课件（"+deck.slides.length+" 页）");
+}
+function showSyncCodeDialog(){
+  genSyncCode().then(function(code){
+    if(!code) return;
+    var ta=document.createElement("textarea");
+    ta.value=code; ta.style.cssText="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:80%;max-width:600px;height:200px;z-index:999;padding:12px;font-size:12px;border:2px solid #e8825a;border-radius:8px;background:#1b2838;color:#e8eef5;";
+    document.body.appendChild(ta);
+    ta.select();
+    var ok=confirm("同步码已生成（"+code.length+" 字符），已自动选中。\n\nCtrl+C 复制后，在另一设备打开课件 → 「输入同步码」粘贴即可恢复。\n\n大课件（含多图）同步码会很长，建议用「保存」下载 HTML 后传文件。\n\n确定后关闭。");
+    document.body.removeChild(ta);
+  });
+}
+function showSyncCodeInput(){
+  var code=prompt("粘贴同步码（从另一设备「生成同步码」复制）：");
+  if(!code) return;
+  applySyncCode(code).catch(function(e){ toast("同步码解析失败："+e.message); });
+}
+
+/* ================= M3：BucketAdapter 云同步骨架（S3 兼容，需配置） ================= */
+var BucketConfig=null;   /* {endpoint,bucket,accessKey,secretKey,prefix,region} */
+var BucketAdapter={
+  configured:function(){ return !!(BucketConfig&&BucketConfig.bucket&&BucketConfig.accessKey&&BucketConfig.secretKey); },
+  configKey:"pptx-bucket-config",
+  loadConfig:function(){
+    try{ var raw=localStorage.getItem(this.configKey); if(raw) BucketConfig=JSON.parse(raw); }catch(e){}
+  },
+  saveConfig:function(cfg){
+    BucketConfig=cfg;
+    try{ localStorage.setItem(this.configKey,JSON.stringify(cfg)); }catch(e){}
+  },
+  clearConfig:function(){ BucketConfig=null; try{ localStorage.removeItem(this.configKey); }catch(e){} },
+  objectKey:function(id){ return (BucketConfig.prefix||"decks/")+(id||"deck")+".html"; },
+  /* S3 签名 PUT（v4）——配置后可用；未配置时提示 */
+  async uploadHTML(id, htmlBlob){
+    if(!this.configured()) throw new Error("请先在「云同步设置」里配置对象存储桶");
+    /* 简化版：直接 PUT 到 endpoint/bucket/key（需桶配置为公开读或预签名）
+       完整 v4 签名实现待桶配置后补全；当前骨架保证接口与 UI 就位 */
+    var url=BucketConfig.endpoint.replace(/\/+$/,"")+"/"+BucketConfig.bucket+"/"+this.objectKey(id);
+    var r=await fetch(url,{method:"PUT",body:htmlBlob,headers:{"Content-Type":"text/html;charset=utf-8"}});
+    if(!r.ok) throw new Error("上传失败 HTTP "+r.status);
+    return url;
+  },
+  async fetchHTML(id){
+    if(!this.configured()) throw new Error("请先配置对象存储桶");
+    var url=BucketConfig.endpoint.replace(/\/+$/,"")+"/"+BucketConfig.bucket+"/"+this.objectKey(id);
+    var r=await fetch(url);
+    if(!r.ok) throw new Error("下载失败 HTTP "+r.status);
+    return await r.text();
+  }
+};
+BucketAdapter.loadConfig();
+function showBucketConfig(){
+  var c=BucketConfig||{};
+  var endpoint=prompt("对象存储 Endpoint（如 https://s3.amazonaws.com 或 https://oss-cn-beijing.aliyuncs.com）：", c.endpoint||"");
+  if(endpoint===null) return;
+  var bucket=prompt("Bucket 名称：", c.bucket||"");
+  if(bucket===null) return;
+  var ak=prompt("AccessKey（仅存本地浏览器，不上传）：", c.accessKey||"");
+  if(ak===null) return;
+  var sk=prompt("SecretKey（仅存本地浏览器）：", c.secretKey||"");
+  if(sk===null) return;
+  var prefix=prompt("对象前缀（默认 decks/）：", c.prefix||"decks/");
+  BucketAdapter.saveConfig({endpoint:endpoint,bucket:bucket,accessKey:ak,secretKey:sk,prefix:prefix||"decks/"});
+  toast("云同步配置已保存");
+}
+function uploadToBucket(){
+  if(!BucketAdapter.configured()){ showBucketConfig(); return; }
+  if(!DECK||!DECK.slides.length){ toast("没有课件数据"); return; }
+  var enc=JSON.stringify(DECK).replace(/</g,"\\u003c");
+  var html="<!DOCTYPE html>\n"+document.documentElement.outerHTML;
+  html=html.replace(/(<script type="application\/json" id="deck-data">)[\s\S]*?(<\/script>)/,"$1"+enc+"$2");
+  var blob=new Blob([html],{type:"text/html;charset=utf-8"});
+  toast("正在上传到云存储…");
+  BucketAdapter.uploadHTML(DECK.id||"deck",blob).then(function(url){
+    toast("已上传："+url);
+    clearDraft(DECK.id);
+  }).catch(function(e){ toast("上传失败："+e.message); });
+}
+function fetchFromBucket(){
+  if(!BucketAdapter.configured()){ showBucketConfig(); return; }
+  var id=prompt("要加载的课件 ID（即文件名，不含 .html）：", DECK&&DECK.id||"deck");
+  if(!id) return;
+  toast("正在从云存储加载…");
+  BucketAdapter.fetchHTML(id).then(function(html){
+    /* 从 HTML 里提取 #deck-data 的 JSON 并 applyDeck */
+    var m=html.match(/<script type="application\/json" id="deck-data">([\s\S]*?)<\/script>/);
+    if(!m) throw new Error("文件里没有课件数据");
+    var deck=JSON.parse(m[1].replace(/\\u003c/g,"<"));
+    applyDeck(deck);
+    toast("已从云端加载："+(deck.title||id)+"（"+deck.slides.length+" 页）");
+  }).catch(function(e){ toast("加载失败："+e.message); });
+}
+
+/* ---- 插入本地图片（转 dataURL，按比例缩放到最长边 400px） ---- */
+function addImageFromFile(f){
+  if(!f||!DECK||!DECK.slides||!DECK.slides.length) return;
+  if(!/^image\//.test(f.type||"")&&!/\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(f.name||"")){
+    toast("请选择图片文件（png/jpg/gif/webp 等）"); return;
+  }
+  var reader=new FileReader();
+  reader.onload=function(){
+    var dataUrl=reader.result;
+    var img=new Image();
+    img.onload=function(){
+      var max=400, w=img.naturalWidth||300, h=img.naturalHeight||300;
+      if(w>max||h>max){ var r=Math.min(max/w,max/h); w=Math.round(w*r); h=Math.round(h*r); }
+      var si=idx, hi=DECK.slides[si].shapes.length;
+      var shape={t:"i",src:dataUrl,x:120,y:120,w:w,h:h};
+      DECK.slides[si].shapes.push(shape);
+      renderSlideAt(si);
+      selectAt(si,hi);
+      pushUndo({undo:function(){ DECK.slides[si].shapes.splice(hi,1); renderSlideAt(si); clearSel(); },
+                redo:function(){ DECK.slides[si].shapes.splice(hi,0,shape); renderSlideAt(si); selectAt(si,hi); }});
+      toast("已插入图片（"+w+"×"+h+"），可拖动/缩放");
+    };
+    img.onerror=function(){ toast("图片加载失败"); };
+    img.src=dataUrl;
+  };
+  reader.onerror=function(){ toast("读取图片失败"); };
+  reader.readAsDataURL(f);
+}
+
+/* ---- 编辑入口（键盘/滚轮接入点见 keydown / wheel handler） ---- */
+$("#editBtn").onclick=function(){ setEdit(!EDIT); };
+$("#edDone").onclick=function(){ setEdit(false); };
+$("#edUndo").onclick=function(){ undo(); };
+$("#edRedo").onclick=function(){ redo(); };
+$("#edDel").onclick=function(){ delShape(); };
+$("#edDup").onclick=function(){ dupShape(); };
+$("#edSave").onclick=function(){ saveAsHTML(); };
+$("#edFsMinus").onclick=function(){ var sh=selSh(); if(!sh) return; setFontSize((currentFontSize(sh)||16)-2); };
+$("#edFsPlus").onclick=function(){ var sh=selSh(); if(!sh) return; setFontSize((currentFontSize(sh)||16)+2); };
+$("#edFsVal").onchange=function(){ setFontSize(this.value); };
+$("#edFsVal").onkeydown=function(e){ if(e.key==="Enter"){ this.blur(); } };
+$("#edImg").onclick=function(){ $("#edImgFile").click(); };
+$("#edImgFile").onchange=function(e){ var f=e.target.files[0]; e.target.value=""; addImageFromFile(f); };
+$("#edFit").onclick=setFit;
+$("#edCrop").onclick=toggleCrop;
+$("#syncCodeBtn").onclick=function(){
+  if(confirm("① 生成同步码（把当前课件编码成一串字符，另一设备粘贴恢复）？\n取消 = 输入同步码恢复")){ showSyncCodeDialog(); }
+  else { showSyncCodeInput(); }
+};
+$("#bucketBtn").onclick=function(){
+  if(confirm("① 上传当前课件到云存储？\n取消 = ② 从云存储加载\n再取消 = 云同步设置")){ uploadToBucket(); }
+  else if(confirm("从云存储加载课件？\n取消 = 云同步设置")){ fetchFromBucket(); }
+  else { showBucketConfig(); }
+};
 
 /* ================= 事件绑定 ================= */
 function buildDots(){
@@ -658,18 +1564,27 @@ $("#fab").onclick=function(){ cur()?openCls():openCls(); };
 $("#rGo").onclick=function(){ var p=bp(cur()); if(p) go(Math.max(0,p-1)); };
 $("#rX").onclick=function(){ $("#resume").style.display="none"; };
 $("#hideBtn").onclick=function(){ document.body.classList.toggle("hide-ui"); setTimeout(fit,60); };
-$("#dataBtn").onclick=function(){
-  var m="① 导出备份：把当前所有班进度 + 备注存成 json 文件\n② 导入：换电脑时恢复\n③ 复制进度网址：网址里带进度，存书签即可跨设备\n\n选「确定」导出，「取消」进入下一项";
-  if(confirm(m)) exportJSON();
-  else copyLink();
-};
 $("#impBtn").onclick=function(){ $("#fileIn").click(); };
+/* 数据面板：进度备份 → 工程数据导出 → 工程数据导入 → 复制进度网址 */
 $("#dataBtn").onclick=function(){
-  if(confirm("确定：导出备份文件（含所有班进度 + 备注）\n取消：复制带进度的网址，存成书签即可在别的电脑上打开")) exportJSON();
-  else copyLink();
+  if(confirm("① 导出进度备份（班级断点 + 备注）？\n取消 = 下一步")){ exportJSON(); return; }
+  if(confirm("② 导出工程数据（课件内容 IR，含全部页面）？\n取消 = 下一步")){ exportDeckJSON(); return; }
+  if(confirm("③ 导入工程数据（.json，重渲染课件）？\n取消 = 复制带进度网址")){ $("#fileIn").click(); return; }
+  copyLink();
 };
 
 document.addEventListener("keydown",function(e){
+  /* 编辑模式优先：Esc 退出编辑 / 清选择，Ctrl+Z/Y 撤销重做，Ctrl+D 复制，Delete 删除，屏蔽翻页与记断点 */
+  if(EDIT&&DECK&&!(document.activeElement&&(document.activeElement.isContentEditable||/INPUT|TEXTAREA/.test(document.activeElement.tagName)))){
+    var k0=e.key;
+    if(k0==="Escape"){ e.preventDefault(); if(editingText){ commitTextEdit(); } else if(selSlide>=0){ clearSel(); } else { setEdit(false); } return; }
+    if((e.ctrlKey||e.metaKey)&&k0==="z"){ e.preventDefault(); e.shiftKey?redo():undo(); return; }
+    if((e.ctrlKey||e.metaKey)&&k0==="y"){ e.preventDefault(); redo(); return; }
+    if((e.ctrlKey||e.metaKey)&&k0==="d"){ e.preventDefault(); dupShape(); return; }
+    if(k0==="Delete"||k0==="Backspace"){ e.preventDefault(); delShape(); return; }
+    if(k0==="s"||k0==="S"||k0==="ArrowRight"||k0==="ArrowLeft"||k0==="ArrowDown"||k0==="ArrowUp"||
+       k0===" "||k0==="PageDown"||k0==="PageUp"||k0==="Home"||k0==="End"){ e.preventDefault(); return; }
+  }
   if(document.activeElement && (document.activeElement.isContentEditable ||
      /INPUT|TEXTAREA/.test(document.activeElement.tagName))) return;
   var k=e.key;
@@ -684,6 +1599,7 @@ document.addEventListener("keydown",function(e){
   else if(k==="Escape"){ openOv(); }
   else if(k==="s"||k==="S"){ markHere(e.shiftKey); }
   else if(k==="n"||k==="N"){ openNote(); }
+  else if(k==="e"||k==="E"){ if(DECK) setEdit(!EDIT); }
   else if(k==="h"||k==="H"){ document.body.classList.toggle("hide-ui"); setTimeout(fit,60); }
   else if(k==="c"||k==="C"){ openCls(); }
 });
@@ -692,13 +1608,17 @@ document.addEventListener("keydown",function(e){
 var acc=0,wt=null;
 $("#viewport").addEventListener("wheel",function(e){
   if($("#ovp").classList.contains("show")) return;
+  if(EDIT) return;   /* 编辑模式不滚轮翻页 */
   e.preventDefault(); acc+=e.deltaY;
   clearTimeout(wt);
   wt=setTimeout(function(){acc=0},180);
   if(acc>60){ go(idx+1); acc=0; } else if(acc<-60){ go(idx-1); acc=0; }
 },{passive:false});
 var tx0=null,ty0=null;
-function tst(e){ tx0=e.touches[0].clientX; ty0=e.touches[0].clientY; }
+function tst(e){
+  if(EDIT) return;   /* 编辑模式不触摸翻页 */
+  tx0=e.touches[0].clientX; ty0=e.touches[0].clientY; }
+
 function tmv(e){
   if(tx0===null) return;
   var dx=e.touches[0].clientX-tx0, dy=e.touches[0].clientY-ty0;
@@ -713,6 +1633,18 @@ window.addEventListener("resize",function(){ fit(); });
 window.addEventListener("hashchange",function(){ var p=applyHash(); if(p){ save(); renderTopbar(); go(Math.max(0,p-1)); } });
 
 /* ================= 启动 ================= */
+/* 有内嵌工程数据（IR）→ 用运行时渲染器渲染；否则回退构建期注入的静态 slide HTML */
+if(DECK&&DECK.slides){
+  document.getElementById("deck").innerHTML=renderSlides(DECK).join("\n");
+  TOTAL=DECK.slides.length;
+  LID=DECK.id||LID; TITLE=DECK.title||TITLE;
+  document.title=TITLE;
+  var tt=document.querySelector(".tb-title"); if(tt) tt.textContent=TITLE;
+  var sub=document.querySelector(".tb-sub"); if(sub) sub.textContent=LID;
+}
+/* 浏览器内导入 PPTX：导入器未注入（未构建）时隐藏按钮 */
+if(window.PPTXImport&&window.PPTXImport.fromFile){ initPptxImport(); }
+else{ var _pb=document.getElementById("pptxBtn"); if(_pb) _pb.style.display="none"; }
 S=load();
 buildDots();
 /* 配置里新增了班级时，合并进来（已存在的按 id 保留） */
@@ -733,6 +1665,8 @@ if(!cur()){
 save(); renderCls(); renderTopbar();
 fit(); go(jumped?Math.max(0,jumped-1):0,true);
 if(!jumped) autoJump(false);
+/* M3：草稿恢复检查默认关闭（需要时取消注释） */
+/* setTimeout(checkDraftOnLoad,1500); */
 </script>
 </body>
 </html>

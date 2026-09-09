@@ -134,9 +134,19 @@ def render(deck, tpl, classes=None, lectures=None, course="", course_id=""):
         slides.append('<section class="slide" data-n="%d" style="background:%s">%s</section>'
                       % (s['n'], s.get('bg') or '#FFFFFF', ''.join(body)))
 
+    # 浏览器端 PPTX 导入器（tools/pptx-import 打包产物，未构建时注入空串）
+    pptx_js = ""
+    import_js = os.path.join(here, 'tools', 'pptx-import', 'dist', 'pptx-import.js')
+    if os.path.exists(import_js):
+        with open(import_js, encoding='utf-8') as f:
+            pptx_js = f.read()
+
     out = tpl
     total = len(deck['slides'])
     title = deck.get('title') or deck['id']
+    # 内嵌工程数据（IR）：产物 HTML 同时是放映器、编辑器和数据载体。
+    # 序列化时把 "</" 转义为 "<\/"，避免 JSON 中出现的 "</script>" 提前闭合脚本块。
+    deck_data = json.dumps(deck, ensure_ascii=False, separators=(',', ':')).replace('</', '<\\/')
     for k, v in [('__LECTURE_TITLE_HTML__', esc(title)),
                  ('__LECTURE_TITLE__', json.dumps(title, ensure_ascii=False)),
                  ('__LECTURE_ID__', json.dumps(deck['id'], ensure_ascii=False)),
@@ -146,7 +156,9 @@ def render(deck, tpl, classes=None, lectures=None, course="", course_id=""):
                  ('__CLASSES__', json.dumps(classes or [], ensure_ascii=False)),
                  ('__LECTURES__', json.dumps(lectures or [], ensure_ascii=False)),
                  ('__TOTAL__', str(total)),
-                 ('__SLIDES__', '\n'.join(slides))]:
+                 ('__SLIDES__', '\n'.join(slides)),
+                 ('__DECK_DATA__', deck_data),
+                 ('__PPTX_IMPORT_JS__', pptx_js)]:
         out = out.replace(k, v)
     return out
 
