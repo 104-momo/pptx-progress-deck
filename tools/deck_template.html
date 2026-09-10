@@ -289,6 +289,7 @@ body.hide-ui #topbar,body.hide-ui #botbar{display:none}
   <button class="tb-btn" id="ovBtn">总览 <kbd>Esc</kbd></button>
   <button class="tb-btn" id="noteBtn">备注 <kbd>N</kbd></button>
   <button class="tb-btn" id="editBtn" title="编辑模式 (E)：选择 / 移动 / 缩放 / 改字">编辑 <kbd>E</kbd></button>
+  <button class="tb-btn hot" id="saveBtn" title="把当前课件内容和上课进度保存到一个新 HTML 文件里，换设备打开直接用">保存</button>
   <button class="tb-btn" id="pptxBtn" title="在浏览器里直接导入 .pptx 课件（无需转换工具）">导入PPT</button>
   <button class="tb-btn" id="impBtn" title="导入进度备份或工程数据（.json）；选 .pptx 也会自动识别">导入备份</button>
   <button class="tb-btn" id="dataBtn">备份</button>
@@ -663,17 +664,24 @@ function renderTopbar(){
 }
 function renderLectures(){
   var sel=$("#lecSel");
-  if(!LECTURES || LECTURES.length<2){ sel.style.display="none"; return; }
+  /* 优先用 DECK.lectures（浏览器内批量导入的多讲次），其次用预配置 LECTURES */
+  var list=(DECK&&DECK.lectures&&DECK.lectures.length)?DECK.lectures:LECTURES;
+  if(!list||list.length<2){ sel.style.display="none"; return; }
+  sel.style.display="";
   sel.innerHTML="";
-  LECTURES.forEach(function(l){
+  list.forEach(function(l){
     var o=document.createElement("option");
-    o.value=l.file; o.textContent=l.title||l.id;
+    o.value=l.id; o.textContent=l.title||l.name||l.id;
     if(l.id===LID) o.selected=true;
     sel.appendChild(o);
   });
   sel.onchange=function(){
     if(!sel.value) return;
-    location.href=sel.value+"#"+hashStr();
+    if(DECK&&DECK.lectures&&DECK.lectures.length){
+      switchLecture(sel.value);  /* 同文件内切讲次 */
+    }else{
+      location.href=sel.value+"#"+hashStr();  /* 预配置讲次：跳转文件 */
+    }
   };
 }
 function renderCls(){
@@ -688,12 +696,21 @@ function renderCls(){
                 '<div class="cp">'+(p>1?("讲到 P"+(p-1)+" · 下次 P"+p):(p===1?"未开课 · 从头开始":"未开始"))+'</div>';
     d.querySelector(".cdel").onclick=function(e){ e.stopPropagation(); delCls(c.id); };
     d.querySelector(".cn").style.color=CLR[i%CLR.length];
+    var clickTimer=null;
     d.onclick=function(e){
       if(e.target.classList.contains("cn")&&e.target.isContentEditable) return;
+      if(e.target.classList.contains("cn")){
+        if(clickTimer) clearTimeout(clickTimer);
+        clickTimer=setTimeout(function(){
+          S.current=c.id; save(); writeHash(); closeCls(); renderTopbar(); autoJump(true);
+        },250);
+        return;
+      }
       S.current=c.id; save(); writeHash(); closeCls(); renderTopbar(); autoJump(true);
     };
     var cn=d.querySelector(".cn");
     cn.ondblclick=function(e){
+      if(clickTimer){ clearTimeout(clickTimer); clickTimer=null; }
       e.stopPropagation(); cn.contentEditable="true"; cn.style.outline="1px dashed #6b8299"; cn.focus();
       document.getSelection().selectAllChildren(cn);
     };
@@ -836,8 +853,12 @@ function applyDeck(deck){
   var sub=document.querySelector(".tb-sub"); if(sub) sub.textContent=LID;
   document.getElementById("deck").innerHTML=renderSlides(DECK).join("\n");
   TOTAL=DECK.slides.length;
+  /* 多讲次：确保当前讲次在 lectures 中是同一个引用，编辑器修改自动回存 */
+  if(DECK.lectures&&DECK.lectures.length){
+    DECK.lectures.forEach(function(l,i){ if(l.id===LID) DECK.lectures[i]=DECK; });
+  }
   buildDots(); sanitizeProgress(); save();
-  idx=0; go(0,true); renderTopbar(); writeHash();
+  idx=0; go(0,true); renderCls(); renderTopbar(); writeHash();
   toast("已导入工程数据："+(TITLE||LID)+"（"+TOTAL+" 页，本次会话生效）");
 }
 $("#fileIn").onchange=function(e){
@@ -904,15 +925,89 @@ function importPptxFile(f){
     toast("解析失败："+(err&&err.message?err.message:String(err)));
   });
 }
+/* 批量导入多个 PPTX，合并成一整门课（多讲次） */
+function importMultiplePptx(files){
+  if(!files||!files.length) return;
+  /* 按文件名排序，保证讲次顺序 */
+  files.sort(function(a,b){ return String(a.name).localeCompare(String(b.name),"zh-CN"); });
+  var total=files.length, done=0, failed=0, lectures=[];
+  toast("正在导入 "+total+" 个 PPTX…（0/"+total+"）");
+  files.forEach(function(f,idx){
+    var name=String(f.name||"").replace(/\.pptx$/i,"").replace(/[\\/:*?"<>|]/g,"_").slice(0,40)||("讲次"+(idx+1));
+    var lid="L"+String(idx+1).padStart(2,"0");
+    window.PPTXImport.fromFile(f,{id:lid,title:name}).then(function(deck){
+      deck.id=lid; deck.name=name; deck.title=name;
+      /* blob 图片转 dataURL */
+      var imgs=[];
+      (deck.slides||[]).forEach(function(s){
+        (s.shapes||[]).forEach(function(sh){
+          if(sh.t==="i"&&sh.src&&sh.src.indexOf("blob:")===0) imgs.push(sh);
+        });
+      });
+      var finishOne=function(){
+        lectures.push(deck); done++;
+        toast("正在导入…（"+done+"/"+total+"）"+(failed?(" 失败"+failed):""));
+        if(done+failed===total){
+          if(lectures.length){
+            /* 按讲次 ID 排序 */
+            lectures.sort(function(a,b){ return String(a.id).localeCompare(String(b.id)); });
+            /* 把所有讲次存入 DECK.lectures，第一个讲次作为当前 */
+            var first=lectures[0];
+            first.lectures=lectures;
+            applyDeck(first);
+            toast("已导入整门课："+lectures.length+" 个讲次，共 "+lectures.reduce(function(s,l){return s+(l.slides?l.slides.length:0);},0)+" 页");
+          }else{
+            toast("全部导入失败");
+          }
+        }
+      };
+      if(!imgs.length){ finishOne(); return; }
+      var imgDone=0;
+      imgs.forEach(function(sh){
+        fetch(sh.src).then(function(r){return r.blob()}).then(function(b){return blobToDataURL(b)}).then(function(d){
+          sh.src=d;
+        }).catch(function(){}).then(function(){
+          imgDone++; if(imgDone===imgs.length) finishOne();
+        });
+      });
+    }).catch(function(err){
+      failed++; done++;
+      console.error("导入失败",name,err);
+      if(done+failed===total){
+        if(lectures.length){
+          lectures.sort(function(a,b){ return String(a.id).localeCompare(String(b.id)); });
+          var first=lectures[0]; first.lectures=lectures; applyDeck(first);
+          toast("已导入 "+lectures.length+"/"+total+" 个讲次（"+failed+" 个失败）");
+        }else{
+          toast("全部导入失败");
+        }
+      }
+    });
+  });
+}
+/* 切换讲次（同文件内，不跳转页面） */
+function switchLecture(lid){
+  if(!DECK||!DECK.lectures||!DECK.lectures.length) return;
+  var found=null;
+  DECK.lectures.forEach(function(l){ if(l.id===lid) found=l; });
+  if(!found){ toast("找不到讲次 "+lid); return; }
+  if(found.id===LID) return;
+  /* 保存当前讲次的修改回 lectures */
+  DECK.lectures.forEach(function(l,i){ if(l.id===LID) DECK.lectures[i]=DECK; });
+  found.lectures=DECK.lectures;
+  applyDeck(found);
+}
 function initPptxImport(){
   var inp=document.createElement("input");
-  inp.type="file"; inp.id="pptxFile";
+  inp.type="file"; inp.id="pptxFile"; inp.multiple=true;
   inp.accept=".pptx,application/vnd.openxmlformats-officedocument.presentationml.presentation";
   inp.style.display="none";
   document.body.appendChild(inp);
   inp.onchange=function(){
-    var f=inp.files[0]; inp.value="";
-    importPptxFile(f);
+    var files=Array.prototype.slice.call(inp.files); inp.value="";
+    if(!files.length) return;
+    if(files.length===1){ importPptxFile(files[0]); return; }
+    importMultiplePptx(files);
   };
   document.getElementById("pptxBtn").onclick=function(){ inp.click(); };
 }
@@ -1273,9 +1368,19 @@ function dupShape(){
 /* ---- 保存：把当前编辑结果导出为新单文件 HTML（数据跟文件走） ---- */
 function saveAsHTML(){
   if(!DECK||!DECK.slides||!DECK.slides.length){ toast("没有课件数据"); return; }
+  /* 构建纯数据对象，避免 DECK.lectures[i]===DECK 的循环引用 */
+  var saveData;
+  if(DECK.lectures&&DECK.lectures.length){
+    var lectures=DECK.lectures.map(function(l){
+      return {id:l.id,title:l.title,name:l.name,size:l.size,slides:l.slides};
+    });
+    saveData={id:DECK.id,title:DECK.title,name:DECK.name,size:DECK.size,slides:DECK.slides,lectures:lectures};
+  }else{
+    saveData=DECK;
+  }
   /* 用 DOM 更新数据，避免字符串替换被 JS 代码自身干扰 */
   var deckEl=document.getElementById("deck-data");
-  if(deckEl) deckEl.textContent=JSON.stringify(DECK).replace(/</g,"\\u003c");
+  if(deckEl) deckEl.textContent=JSON.stringify(saveData).replace(/</g,"\\u003c");
   var progEl=document.getElementById("progress-data");
   if(!progEl){
     progEl=document.createElement("script");
@@ -1523,6 +1628,7 @@ function addImageFromFile(f){
 
 /* ---- 编辑入口（键盘/滚轮接入点见 keydown / wheel handler） ---- */
 $("#editBtn").onclick=function(){ setEdit(!EDIT); };
+$("#saveBtn").onclick=function(){ saveAsHTML(); };
 $("#edDone").onclick=function(){ setEdit(false); };
 $("#edUndo").onclick=function(){ undo(); };
 $("#edRedo").onclick=function(){ redo(); };
@@ -1641,21 +1747,29 @@ if(DECK&&DECK.slides){
   document.title=TITLE;
   var tt=document.querySelector(".tb-title"); if(tt) tt.textContent=TITLE;
   var sub=document.querySelector(".tb-sub"); if(sub) sub.textContent=LID;
+  /* 多讲次：确保当前讲次在 lectures 中是同一个引用 */
+  if(DECK.lectures&&DECK.lectures.length){
+    DECK.lectures.forEach(function(l,i){ if(l.id===LID) DECK.lectures[i]=DECK; });
+  }
 }
 /* 浏览器内导入 PPTX：导入器未注入（未构建）时隐藏按钮 */
 if(window.PPTXImport&&window.PPTXImport.fromFile){ initPptxImport(); }
 else{ var _pb=document.getElementById("pptxBtn"); if(_pb) _pb.style.display="none"; }
 S=load();
 buildDots();
-/* 配置里新增了班级时，合并进来（已存在的按 id 保留） */
+/* 配置里新增了班级时，合并进来（已存在的按 id 更新 name） */
 if(DEFAULT_CLASSES && DEFAULT_CLASSES.length){
-  var have={}; S.classes.forEach(function(c){ have[c.id]=1; });
-  var added=false;
+  var have={}; S.classes.forEach(function(c){ have[c.id]=c; });
+  var changed=false;
   DEFAULT_CLASSES.forEach(function(c,i){
-    if(!c.id || have[c.id]) return;
-    S.classes.push({id:c.id,name:c.name||("班级"+(i+1))}); added=true;
+    if(!c.id) return;
+    if(have[c.id]){
+      if(have[c.id].name!==c.name){ have[c.id].name=c.name; changed=true; }
+    }else{
+      S.classes.push({id:c.id,name:c.name||("班级"+(i+1))}); changed=true;
+    }
   });
-  if(added) save();
+  if(changed) save();
 }
 var jumped=applyHash();
 if(!cur()){
