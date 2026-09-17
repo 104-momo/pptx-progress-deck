@@ -114,6 +114,92 @@ const patchPptxViewer = {
       const rep4b = `i.fontSize === void 0 && s.fontSize !== void 0 && (i.fontSize = s.fontSize), i.fontFamily === void 0 && s.fontFamily !== void 0 && (i.fontFamily = s.fontFamily), i.eaFont === void 0 && s.eaFont !== void 0 && (i.eaFont = s.eaFont),`;
       if(src.includes(old4b)){ src = src.replace(old4b, rep4b); patched++; }
 
+      /* Patch 5: 文本框级别默认字号 —— ve() 解析 txBody/lstStyle 中的 lvlNpPr/defRPr */
+      const old5 = `  return {
+    paragraphs: r,
+    verticalAlign: l,
+    padding: i,
+    autofit: c
+  };
+}`;
+      const rep5 = `  const _ls = h(e, "lstStyle");
+  if (_ls) {
+    const _df = Nt(_ls, t);
+    for (const _pa of r) {
+      const _lv = _pa.level ?? 0, _d = _df[Math.min(_lv, _df.length - 1)];
+      if (_d) for (const _rn of _pa.runs) {
+        _rn.fontSize === void 0 && _d.fontSize !== void 0 && (_rn.fontSize = _d.fontSize);
+        _rn.fontFamily === void 0 && _d.fontFamily !== void 0 && (_rn.fontFamily = _d.fontFamily);
+        _rn.eaFont === void 0 && _d.eaFont !== void 0 && (_rn.eaFont = _d.eaFont);
+        _rn.color === void 0 && _d.color !== void 0 && (_rn.color = _d.color);
+        _rn.bold === void 0 && _d.bold !== void 0 && (_rn.bold = _d.bold);
+        _rn.italic === void 0 && _d.italic !== void 0 && (_rn.italic = _d.italic);
+        _rn.underline === void 0 && _d.underline !== void 0 && (_rn.underline = _d.underline);
+      }
+    }
+  }
+  return {
+    paragraphs: r,
+    verticalAlign: l,
+    padding: i,
+    autofit: c
+  };
+}`;
+      if(src.includes(old5)){ src = src.replace(old5, rep5); patched++; }
+
+      /* Patch 6: 段落级别默认字号 —— kn() 解析 pPr/defRPr 并继承到 run */
+      const old6 = `  return {
+    runs: r,
+    align: i,
+    lineSpacing: l,
+    spaceBefore: c,
+    spaceAfter: o,
+    bullet: a,
+    level: u,
+    marginLeft: d,
+    indent: f
+  };
+}`;
+      const rep6 = `  if (s) {
+    const _dr = h(s, "defRPr");
+    if (_dr) {
+      const _d = Ut(_dr, t);
+      for (const _rn of r) {
+        _rn.fontSize === void 0 && _d.fontSize !== void 0 && (_rn.fontSize = _d.fontSize);
+        _rn.fontFamily === void 0 && _d.fontFamily !== void 0 && (_rn.fontFamily = _d.fontFamily);
+        _rn.eaFont === void 0 && _d.eaFont !== void 0 && (_rn.eaFont = _d.eaFont);
+        _rn.color === void 0 && _d.color !== void 0 && (_rn.color = _d.color);
+        _rn.bold === void 0 && _d.bold !== void 0 && (_rn.bold = _d.bold);
+        _rn.italic === void 0 && _d.italic !== void 0 && (_rn.italic = _d.italic);
+        _rn.underline === void 0 && _d.underline !== void 0 && (_rn.underline = _d.underline);
+      }
+    }
+  }
+  return {
+    runs: r,
+    align: i,
+    lineSpacing: l,
+    spaceBefore: c,
+    spaceAfter: o,
+    bullet: a,
+    level: u,
+    marginLeft: d,
+    indent: f
+  };
+}`;
+      if(src.includes(old6)){ src = src.replace(old6, rep6); patched++; }
+
+      /* Patch 7: 占位符类型映射 —— obj 类型 fallback 到 body 样式（other 通常为空） */
+      const old7 = `function ur(e, t) {
+  return e === "title" || e === "ctrTitle" ? t.title : e === "body" || e === "subTitle" ? t.body : t.other;
+}`;
+      const rep7 = `function ur(e, t) {
+  const _r = e === "title" || e === "ctrTitle" ? t.title : e === "body" || e === "subTitle" ? t.body : t.other;
+  if (_r && _r.length > 0) return _r;
+  return t.body && t.body.length > 0 ? t.body : _r;
+}`;
+      if(src.includes(old7)){ src = src.replace(old7, rep7); patched++; }
+
       console.log('  [patch] applied ' + patched + ' patches');
       return { contents: src, loader: 'js' };
     });

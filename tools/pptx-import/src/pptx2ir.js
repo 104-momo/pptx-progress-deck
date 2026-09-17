@@ -25,13 +25,9 @@ function para2ir(p){
     const ro = {};
     if(r.text) ro.tx = r.text;
     if(r.fontSize) ro.s = Math.round(r.fontSize);
-    /* 东亚字体优先：pptx-viewer 原生只取 latin 字体，patch 后 eaFont 可取 a:ea/@typeface */
-    const hasCJK = r.text && /[\u4e00-\u9fff]/.test(r.text);
-    if(r.eaFont && hasCJK){
-      ro.f = r.eaFont;
-    }else if(r.fontFamily){
-      ro.f = r.fontFamily;
-    }
+    /* 字体不在这里决定，由 pptx2ir 末尾的 fixFonts 统一处理（中文走东亚字体链） */
+    if(r.eaFont) ro._eaFont = r.eaFont;
+    if(r.fontFamily) ro._latinFont = r.fontFamily;
     const c = r.color && hex(r.color);
     if(c) ro.c = c;
     if(r.bold) ro.b = true;
@@ -135,25 +131,104 @@ export function pptx2ir(pres, opt){
   });
   const title = (opt && opt.title) || pres.metadata.title || '未命名课件';
 
-  /* 主题级东亚字体兜底：run 没直接设置字体时，从主题 minorFont/ea 继承 */
+  /* 从第一性原理处理中文字体：
+   * PPT 中文字体继承链：主题 → 母版 → 版式 → 幻灯片 → 文本框默认 → 段落默认 → run
+   * pptx-viewer 只完整实现了 latin 字体继承，ea 字体继承链断裂。
+   * 策略：中文 run 永远走东亚字体链，不允许 fallback 到 latin 字体。
+   * 优先级：run.eaFont（解析主题引用后）→ 主题 minorEA/majorEA → 默认"宋体" */
   const themeFonts = (pres.theme && pres.theme.fonts) || null;
-  const themeEA = (themeFonts && (themeFonts.minorEA || themeFonts.majorEA)) || null;
-  if(themeEA){
-    slides.forEach(s => {
-      (s.shapes || []).forEach(sh => {
-        (sh.p || []).forEach(p => {
-          (p.runs || []).forEach(r => {
-            if(!r.f && r.tx && /[\u4e00-\u9fff]/.test(r.tx)) r.f = themeEA;
-          });
-        });
+  const defaultEA = (themeFonts && (themeFonts.minorEA || themeFonts.majorEA)) || '宋体';
+
+  const resolveThemeRef = function(f){
+    if(!f) return f;
+    if(f === '+mj-ea') return (themeFonts && themeFonts.majorEA) || defaultEA;
+    if(f === '+mn-ea') return (themeFonts && themeFonts.minorEA) || defaultEA;
+    if(f === '+mj-lt') return themeFonts ? themeFonts.major : f;
+    if(f === '+mn-lt') return themeFonts ? themeFonts.minor : f;
+    return f;
+  };
+
+  /* 常见中文字体名（用于判断 fontFamily 是否本身就是中文字体） */
+  const CJK_FONTS = ['宋体','SimSun','Songti','微软雅黑','Microsoft YaHei','PingFang','黑体','SimHei','Heiti','楷体','KaiTi','Kaiti','仿宋','FangSong','STFangsong','等线','DengXian','幼圆','YouYuan','隶书','LiSu','华文','ST'];
+  const isCJKFont = function(f){
+    if(!f) return false;
+    return CJK_FONTS.some(function(n){ return f.indexOf(n) >= 0; });
+  };
+
+  const fixFonts = function(paras){
+    (paras || []).forEach(p => {
+      (p.runs || []).forEach(r => {
+        if(!r.tx) return;
+        const hasCJK = /[\u4e00-\u9fff]/.test(r.tx);
+        const eaFont = r._eaFont;
+        const latinFont = r._latinFont;
+        delete r._eaFont;
+        delete r._latinFont;
+        if(hasCJK){
+          /* 中文：优先 eaFont（但必须是中文字体名，西文字体名如Calibri是PowerPoint误写，忽略），
+             其次 latinFont（如果本身是中文字体），最后默认东亚字体 */
+          if(eaFont && isCJKFont(eaFont)){
+            r.f = resolveThemeRef(eaFont);
+          }else if(latinFont && isCJKFont(latinFont)){
+            r.f = resolveThemeRef(latinFont);
+          }else{
+            r.f = defaultEA;
+          }
+        }else if(latinFont){
+          /* 非中文：用 latin 字体 */
+          r.f = resolveThemeRef(latinFont);
+        }
       });
     });
-  }
+  };
+
+  slides.forEach(s => {
+    (s.shapes || []).forEach(sh => {
+      fixFonts(sh.p);
+      if(sh.rows){
+        sh.rows.forEach(row => {
+          (row.cells || []).forEach(cell => fixFonts(cell.p));
+        });
+      }
+    });
+  });
+
+  /* 尺寸转换：pptx-viewer 输出的是 96DPI 像素，渲染器 slide 固定 1280px 宽，需统一缩放 */
+  const scale = 1280 / pres.slideSize.width;
+  const DEFAULT_FONT_PX = 24;  /* 18pt @96DPI，PowerPoint 正文默认字号 */
+  const convertParas = function(paras){
+    (paras || []).forEach(p => {
+      if(p.sb) p.sb = Math.round(p.sb * scale);
+      if(p.sa) p.sa = Math.round(p.sa * scale);
+      if(p.lh && p.lsu === 'px') p.lh = Math.round(p.lh * scale);
+      (p.runs || []).forEach(r => {
+        if(r.s) r.s = Math.round(r.s * scale);
+        else if(r.tx) r.s = Math.round(DEFAULT_FONT_PX * scale);
+      });
+    });
+  };
+  slides.forEach(s => {
+    (s.shapes || []).forEach(sh => {
+      if(sh.x != null) sh.x = Math.round(sh.x * scale);
+      if(sh.y != null) sh.y = Math.round(sh.y * scale);
+      if(sh.w != null) sh.w = Math.round(sh.w * scale);
+      if(sh.h != null) sh.h = Math.round(sh.h * scale);
+      if(sh.radius) sh.radius = Math.round(sh.radius * scale);
+      convertParas(sh.p);
+      if(sh.rows){
+        if(sh.colW) sh.colW = sh.colW.map(function(w){ return Math.round(w * scale); });
+        sh.rows.forEach(row => {
+          if(row.h) row.h = Math.round(row.h * scale);
+          (row.cells || []).forEach(cell => convertParas(cell.p));
+        });
+      }
+    });
+  });
 
   return {
     id: (opt && opt.id) || 'deck',
     title: title,
-    size: { w: Math.round(pres.slideSize.width), h: Math.round(pres.slideSize.height) },
+    size: { w: 1280, h: Math.round(pres.slideSize.height * scale) },
     slides: slides,
     skipped: skipped
   };

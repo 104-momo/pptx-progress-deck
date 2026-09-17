@@ -1304,6 +1304,14 @@ $("#viewport").addEventListener("dblclick",function(e){
   });
   tf.setAttribute("contenteditable","true");
   tf.classList.add("editing");
+  /* 编辑时给容器设默认字体，让新输入文字也继承原文本框字体 */
+  var firstFont=null;
+  for(var pi=0;pi<(sh.p||[]).length;pi++){
+    var runs=sh.p[pi].runs||[];
+    for(var ri=0;ri<runs.length;ri++){ if(runs[ri].f){ firstFont=runs[ri].f; break; } }
+    if(firstFont) break;
+  }
+  if(firstFont) tf.style.fontFamily=famJS(firstFont);
   editingText={tf:tf,si:si,hi:hi,saved:saved,sh:sh};
   tf.addEventListener("blur",function(){ if(editingText) commitTextEdit(); },{once:true});
   var r=document.createRange(); r.selectNodeContents(tf); r.collapse(false);
@@ -1315,6 +1323,7 @@ function commitTextEdit(){
   var tf=et.tf;
   tf.setAttribute("contenteditable","false");
   tf.classList.remove("editing");
+  tf.style.fontFamily="";
   var pEls=tf.querySelectorAll(".p");
   var newP=[], i=0;
   pEls.forEach(function(pEl){
