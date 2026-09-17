@@ -25,7 +25,13 @@ function para2ir(p){
     const ro = {};
     if(r.text) ro.tx = r.text;
     if(r.fontSize) ro.s = Math.round(r.fontSize);
-    if(r.fontFamily) ro.f = r.fontFamily;
+    /* 东亚字体优先：pptx-viewer 原生只取 latin 字体，patch 后 eaFont 可取 a:ea/@typeface */
+    const hasCJK = r.text && /[\u4e00-\u9fff]/.test(r.text);
+    if(r.eaFont && hasCJK){
+      ro.f = r.eaFont;
+    }else if(r.fontFamily){
+      ro.f = r.fontFamily;
+    }
     const c = r.color && hex(r.color);
     if(c) ro.c = c;
     if(r.bold) ro.b = true;
@@ -128,6 +134,22 @@ export function pptx2ir(pres, opt){
     return r;
   });
   const title = (opt && opt.title) || pres.metadata.title || '未命名课件';
+
+  /* 主题级东亚字体兜底：run 没直接设置字体时，从主题 minorFont/ea 继承 */
+  const themeFonts = (pres.theme && pres.theme.fonts) || null;
+  const themeEA = (themeFonts && (themeFonts.minorEA || themeFonts.majorEA)) || null;
+  if(themeEA){
+    slides.forEach(s => {
+      (s.shapes || []).forEach(sh => {
+        (sh.p || []).forEach(p => {
+          (p.runs || []).forEach(r => {
+            if(!r.f && r.tx && /[\u4e00-\u9fff]/.test(r.tx)) r.f = themeEA;
+          });
+        });
+      });
+    });
+  }
+
   return {
     id: (opt && opt.id) || 'deck',
     title: title,
